@@ -1,20 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 using SpreadsheetLight;
-using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Spreadsheet;
-using System.Drawing;
+using System.IO;
+using System.Runtime.InteropServices;
 
 namespace MeasuresData
 {
@@ -39,7 +30,7 @@ namespace MeasuresData
         {
             if (!System.IO.File.Exists(fname))
                 return;
-            
+            gdata.Clear();
             try
             {
                 SLDocument sl = new SLDocument(fname);
@@ -96,7 +87,8 @@ namespace MeasuresData
                     SLStyle style;
                     nsl.RenameWorksheet(SLDocument.DefaultFirstSheetName, "指標提報");
                     style = nsl.CreateStyle();
-                    style.Alignment.Horizontal = DocumentFormat.OpenXml.Spreadsheet.HorizontalAlignmentValues.Center;
+                    style.Alignment.Horizontal = HorizontalAlignmentValues.Center;
+                    style.Alignment.Vertical = VerticalAlignmentValues.Center;
                     style.Alignment.WrapText = true;
                     style.Font.FontSize = 12;
                     nsl.SetColumnWidth(1, 15);
@@ -111,7 +103,7 @@ namespace MeasuresData
                     nsl.SetColumnStyle(5, style);
 
                     nsl.SetCellValue(1, 1, "指標群組");
-                    nsl.SetCellValue(1, 2, "監視單位");
+                    nsl.SetCellValue(1, 2, "監測單位");
                     nsl.SetCellValue(1, 3, "指標要素");
                     nsl.SetCellValue(1, 4, "指標(要素)名稱");
                     nsl.SetCellValue(1, 5, "數值");
@@ -123,8 +115,11 @@ namespace MeasuresData
                         nsl.SetCellValue(i + 2, 3, x.Value[i].MeasureID);
                         nsl.SetCellValue(i + 2, 4, x.Value[i].MeasureName);
                     }
-                    
 
+                    if (!Directory.Exists(System.Environment.CurrentDirectory + @"\Group"))
+                    {
+                        Directory.CreateDirectory(System.Environment.CurrentDirectory + @"\Group");
+                    }
                     string Refile = System.Environment.CurrentDirectory + @"\Group\" + x.Key + ".xlsx";
                     nsl.SaveAs(Refile);
                     nsl.Dispose();
@@ -153,6 +148,11 @@ namespace MeasuresData
             if (type == "TCPI")
             {
                 SLDocument nsl = new SLDocument();
+                SLStyle style = nsl.CreateStyle();
+                style.Alignment.Horizontal = HorizontalAlignmentValues.Center;
+                style.Alignment.Vertical = VerticalAlignmentValues.Center;
+                style.Alignment.WrapText = true;
+                style.Font.FontSize = 12;
                 nsl.SetColumnWidth(1, 10);
                 nsl.SetColumnWidth(2, 15);
                 nsl.SetColumnWidth(3, 45);
@@ -180,6 +180,10 @@ namespace MeasuresData
                         index++;
                     }
                 }
+                if (!Directory.Exists(System.Environment.CurrentDirectory + @"\Group"))
+                {
+                    Directory.CreateDirectory(System.Environment.CurrentDirectory + @"\Group");
+                }
                 string Refile = System.Environment.CurrentDirectory + @"\Group\" + type + ".xlsx";
                 nsl.SaveAs(Refile);
                 nsl.Dispose();
@@ -187,7 +191,8 @@ namespace MeasuresData
             }
             else if (type == "評鑑持續")
             {
-                if (!System.IO.File.Exists(System.Environment.CurrentDirectory + @"\201905.xlsx"))
+                /*
+                if (!File.Exists(System.Environment.CurrentDirectory + @"\201905.xlsx"))
                     return;
                 SLDocument nsl = new SLDocument(System.Environment.CurrentDirectory + @"\201905.xlsx");
                 Random rand = new Random();
@@ -197,11 +202,13 @@ namespace MeasuresData
                 }
                 nsl.Save();
                 nsl.Dispose();
-                /*
+                */
+                
                 string time = DateTime.Now.ToString("yyy/MM");
                 SLDocument nsl = new SLDocument();
                 SLStyle style = nsl.CreateStyle();
-                style.Alignment.Horizontal = DocumentFormat.OpenXml.Spreadsheet.HorizontalAlignmentValues.Center;
+                style.Alignment.Horizontal = HorizontalAlignmentValues.Center;
+                style.Alignment.Vertical = VerticalAlignmentValues.Center;
                 style.Font.Bold = true;
                 style.Font.FontSize = 12;
                 style.Fill.SetPattern(PatternValues.Solid, System.Drawing.Color.FromArgb(0, 176, 240), System.Drawing.Color.Black);
@@ -250,11 +257,27 @@ namespace MeasuresData
                 string Refile = System.Environment.CurrentDirectory + @"\Group\" + type + ".xlsx";
                 nsl.SaveAs(Refile);
                 nsl.Dispose();
-                */
+                
             }
         }
 
         private void Button_Click_1(object sender, RoutedEventArgs e)
+        {
+            ExportData("TCPI");
+            MessageBox.Show("轉檔成功");
+            /*
+            if (FileStatusHelper.IsFileOccupied(@"檔案路徑"))
+            {
+                MessageBox.Show("檔案已被佔用");
+            }
+            else
+            {
+                MessageBox.Show("檔案未被佔用");
+            }
+            */
+        }
+
+        private void Button_Click_2(object sender, RoutedEventArgs e)
         {
             ExportData("評鑑持續");
             MessageBox.Show("轉檔成功");
@@ -275,5 +298,30 @@ namespace MeasuresData
             Value = new Dictionary<string, string>();
         }
 
+    }
+
+    public class FileStatusHelper
+    {
+        [DllImport("kernel32.dll")]
+        public static extern IntPtr _lopen(string lpPathName, int iReadWrite);
+
+        [DllImport("kernel32.dll")]
+        public static extern bool CloseHandle(IntPtr hObject);
+
+        public const int OF_READWRITE = 2;
+        public const int OF_SHARE_DENY_NONE = 0x40;
+        public static readonly IntPtr HFILE_ERROR = new IntPtr(-1);
+
+        /// <summary>
+        /// 查看檔案是否被佔用
+        /// </summary>
+        /// <param name="filePath"></param>
+        /// <returns></returns>
+        public static bool IsFileOccupied(string filePath)
+        {
+            IntPtr vHandle = _lopen(filePath, OF_READWRITE | OF_SHARE_DENY_NONE);
+            CloseHandle(vHandle);
+            return vHandle == HFILE_ERROR ? true : false;
+        }
     }
 }

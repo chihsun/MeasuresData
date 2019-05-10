@@ -8,6 +8,7 @@
         Title="MainWindow" Height="450" Width="800" Loaded="Window_Loaded" WindowStartupLocation="CenterScreen">
     <Grid>
         <Button Content="轉給單位" HorizontalAlignment="Left" Margin="84,66,0,0" VerticalAlignment="Top" Width="75" Click="Button_Click"/>
-        <Button Content="匯出TCPI" HorizontalAlignment="Left" Margin="274,66,0,0" VerticalAlignment="Top" Width="74" Click="Button_Click_1"/>
+        <Button Content="匯出TCPI" HorizontalAlignment="Left" Margin="274,66,0,0" VerticalAlignment="Top" Width="103" Click="Button_Click_1"/>
+        <Button Content="匯出評鑑持續" HorizontalAlignment="Left" Margin="274,103,0,0" VerticalAlignment="Top" Width="103" Click="Button_Click_2"/>
     </Grid>
 </Window>

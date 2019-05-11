@@ -587,17 +587,18 @@ namespace MeasuresData
                 nsl.SetCellValue(1, 3, "指標要素");
                 nsl.SetCellValue(1, 4, "指標(要素)名稱");
                 nsl.SetCellValue(1, 5, DateTime.Now.AddMonths(-1).ToString("yyyy/MM"));
-
+                int index = 2;
                 for (int i = 0; i < x.Value.Count; i++)
                 {
                     if (dup.Count > 0 && dup.Contains(x.Value[i].MeasureID))
                     {
                         continue;
                     }
-                    nsl.SetCellValue(i + 2, 1, x.Value[i].Group);
-                    nsl.SetCellValue(i + 2, 2, x.Value[i].Depart);
-                    nsl.SetCellValue(i + 2, 3, x.Value[i].MeasureID);
-                    nsl.SetCellValue(i + 2, 4, x.Value[i].MeasureName);
+                    nsl.SetCellValue(index, 1, x.Value[i].Group);
+                    nsl.SetCellValue(index, 2, x.Value[i].Depart);
+                    nsl.SetCellValue(index, 3, x.Value[i].MeasureID);
+                    nsl.SetCellValue(index, 4, x.Value[i].MeasureName);
+                    index++;
                 }
                 string Refile = System.Environment.CurrentDirectory + @"\資料收集\" + x.Key + ".xlsx";
                 nsl.SaveAs(Refile);

@@ -29,6 +29,8 @@ namespace MeasuresData
         public List<DiliveryData> gdata = new List<DiliveryData>();
         public List<Measurement> gmeasure = new List<Measurement>();
         public List<Measures> gcollect = new List<Measures>();
+        public Dictionary<string, List<string>> gduplicate = new Dictionary<string, List<string>>();
+        public List<string> dup = new List<string>();
 
         public void LoadFile(string fname)
         {
@@ -36,10 +38,12 @@ namespace MeasuresData
                 return;
             gdata.Clear();
             gmeasure.Clear();
+            gduplicate.Clear();
+            dup.Clear();
             try
             {
                 SLDocument sl = new SLDocument(fname, "工作表1");
-                
+
                 for (int i = 0; i < 500; i++)
                 {
                     if (string.IsNullOrEmpty(sl.GetCellValueAsString(i + 2, 1)))
@@ -54,6 +58,29 @@ namespace MeasuresData
                         MeasureName = sl.GetCellValueAsString(i + 2, 5).Trim(),
                         User = sl.GetCellValueAsString(i + 2, 7).Trim()
                     };
+                    for (int j = 12; j < 15; j++)
+                    {
+                        string content = sl.GetCellValueAsString(i + 2, j).Trim();
+                        if (string.IsNullOrEmpty(content))
+                            break;
+
+                        if (dup.Contains(content) || (gduplicate.ContainsKey(content) && gduplicate[content].Contains(data.MeasureID)))
+                            continue;
+
+                        dup.Add(content);
+                        
+                        if (gduplicate.ContainsKey(data.MeasureID))
+                        {
+                            if (!gduplicate[data.MeasureID].Contains(content))
+                            {
+                                gduplicate[data.MeasureID].Add(content);
+                            }
+                        }
+                        else
+                        {
+                            gduplicate.Add(data.MeasureID, new List<string>() { content });
+                        }
+                    }
 
                     gdata.Add(data);
                 }
@@ -63,6 +90,10 @@ namespace MeasuresData
                 {
                     MessageBox.Show("匯入成功 : " + gdata.Count.ToString());
                     TxtBox1.Text += Environment.NewLine + "指標匯入數量 : " + gdata.Count + Environment.NewLine;
+                    if (gduplicate.Count > 0)
+                    {
+                        TxtBox1.Text += Environment.NewLine + "相同意義要素組數量 : " + gduplicate.Count + Environment.NewLine;
+                    }
                 }
                 else
                 {
@@ -349,11 +380,8 @@ namespace MeasuresData
             public string MeasureName { get; set; }
             public string Frequency { get; set; }
             public string User { get; set; }
-            public Dictionary<string, string> Value { get; set; }
-            public DiliveryData()
-            {
-                Value = new Dictionary<string, string>();
-            }
+
+            public List<string> SameID = new List<string>();
         }
 
         public class Measurement
@@ -436,6 +464,8 @@ namespace MeasuresData
                     {
                         if (string.IsNullOrEmpty(sl.GetCellValueAsString(i, 1)))
                             break;
+                        if (string.IsNullOrEmpty(sl.GetCellValueAsString(i, 3)))
+                            continue;
                         Measures data = new Measures
                         {
                             MeasureID = sl.GetCellValueAsString(i, 3).Trim(),
@@ -517,7 +547,9 @@ namespace MeasuresData
             {
                 Directory.CreateDirectory(System.Environment.CurrentDirectory + @"\資料收集");
             }
-
+            ///
+            /// 匯出時濾掉名稱不同但相同數值的要素
+            ///
             var newdata = gdata.GroupBy(o => o.Depart)
                     .ToDictionary(o => o.Key, o => o.ToList());
             var unitcounts = gdata.GroupBy(o => o.Depart)
@@ -558,6 +590,10 @@ namespace MeasuresData
 
                 for (int i = 0; i < x.Value.Count; i++)
                 {
+                    if (dup.Count > 0 && dup.Contains(x.Value[i].MeasureID))
+                    {
+                        continue;
+                    }
                     nsl.SetCellValue(i + 2, 1, x.Value[i].Group);
                     nsl.SetCellValue(i + 2, 2, x.Value[i].Depart);
                     nsl.SetCellValue(i + 2, 3, x.Value[i].MeasureID);

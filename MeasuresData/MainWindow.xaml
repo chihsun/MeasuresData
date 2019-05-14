@@ -7,14 +7,14 @@
         mc:Ignorable="d"
         Title="童綜合醫院指標收整工具" Height="450" Width="711" Loaded="Window_Loaded" WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
     <Grid Background="{DynamicResource {x:Static SystemColors.GradientActiveCaptionBrushKey}}">
-        <Button Content="匯入清單" HorizontalAlignment="Left" Margin="84,66,0,0" VerticalAlignment="Top" Width="105" Click="Button_Click"/>
-        <Button Content="匯出TCPI" HorizontalAlignment="Left" Margin="510,66,0,0" VerticalAlignment="Top" Width="105" Click="Button_Click_1"/>
-        <Button Content="匯出評鑑持續" HorizontalAlignment="Left" Margin="510,103,0,0" VerticalAlignment="Top" Width="105" Click="Button_Click_2"/>
-        <Button Content="匯出THIS" HorizontalAlignment="Left" Margin="510,141,0,0" VerticalAlignment="Top" Width="105" Click="Button_Click_3"/>
-        <Button Content="讀取指標" HorizontalAlignment="Left" Margin="84,141,0,0" VerticalAlignment="Top" Width="105" Click="Button_Click_4"/>
+        <Button Content="匯入清單" HorizontalAlignment="Left" Margin="84,66,0,0" VerticalAlignment="Top" Width="105" Click="BT_IMPORT_SOURCE"/>
+        <Button Content="匯出TCPI" HorizontalAlignment="Left" Margin="510,66,0,0" VerticalAlignment="Top" Width="105" Click="BT_TO_TCPI"/>
+        <Button Content="匯出評鑑持續" HorizontalAlignment="Left" Margin="510,103,0,0" VerticalAlignment="Top" Width="105" Click="BT_TO_HACMI"/>
+        <Button Content="匯出THIS" HorizontalAlignment="Left" Margin="510,141,0,0" VerticalAlignment="Top" Width="105" Click="BT_TO_THIS"/>
+        <Button Content="讀取指標" HorizontalAlignment="Left" Margin="84,141,0,0" VerticalAlignment="Top" Width="105" Click="BT_IMPORT_MEASUREDATA"/>
         <TextBox x:Name="TxtBox1" HorizontalAlignment="Left" Height="163" Margin="84,221,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="531" VerticalScrollBarVisibility="Auto"/>
-        <Button Content="匯入收回資料" HorizontalAlignment="Left" Margin="297,66,0,0" VerticalAlignment="Top" Width="103" Click="Button_Click_5"/>
-        <Button Content="轉給單位" HorizontalAlignment="Left" Margin="84,103,0,0" VerticalAlignment="Top" Width="105" Click="Button_Click_6"/>
+        <Button Content="匯入收回資料" HorizontalAlignment="Left" Margin="297,66,0,0" VerticalAlignment="Top" Width="103" Click="BT_IMPORT_RESULT"/>
+        <Button Content="轉給單位" HorizontalAlignment="Left" Margin="84,103,0,0" VerticalAlignment="Top" Width="105" Click="BT_TO_EXPORT_CLINIC"/>
         <Label Content="一" HorizontalAlignment="Left" Margin="33,60,0,0" VerticalAlignment="Top"/>
         <Label Content="二" HorizontalAlignment="Left" Margin="33,97,0,0" VerticalAlignment="Top"/>
         <Label Content="三" HorizontalAlignment="Left" Margin="257,60,0,0" VerticalAlignment="Top"/>

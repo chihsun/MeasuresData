@@ -28,9 +28,10 @@ namespace MeasuresData
 
         public List<DiliveryData> gdata = new List<DiliveryData>();
         public List<Measurement> gmeasure = new List<Measurement>();
-        public List<Measures> gcollect = new List<Measures>();
+        public List<MElements> gcollect = new List<MElements>();
+        public Dictionary<string, List<MElements>> gbackups = new Dictionary<string, List<MElements>>();
         public Dictionary<string, List<string>> gduplicate = new Dictionary<string, List<string>>();
-        public List<string> dup = new List<string>();
+        public List<string> SameEle = new List<string>();
 
         public void LoadFile(string fname)
         {
@@ -39,7 +40,8 @@ namespace MeasuresData
             gdata.Clear();
             gmeasure.Clear();
             gduplicate.Clear();
-            dup.Clear();
+            SameEle.Clear();
+            gbackups.Clear();
             try
             {
                 SLDocument sl = new SLDocument(fname, "工作表1");
@@ -64,10 +66,10 @@ namespace MeasuresData
                         if (string.IsNullOrEmpty(content))
                             break;
 
-                        if (dup.Contains(content) || (gduplicate.ContainsKey(content) && gduplicate[content].Contains(data.MeasureID)))
+                        if (SameEle.Contains(content) || (gduplicate.ContainsKey(content) && gduplicate[content].Contains(data.MeasureID)))
                             continue;
 
-                        dup.Add(content);
+                        SameEle.Add(content);
                         
                         if (gduplicate.ContainsKey(data.MeasureID))
                         {
@@ -122,10 +124,88 @@ namespace MeasuresData
                 sl2.CloseWithoutSaving();
 
                 MessageBox.Show("匯入成功 : " + gmeasure.Count.ToString());
+
+                LoadDataBASE();
             }
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message);
+            }
+        }
+
+        private void LoadDataBASE()
+        {
+            string fpath = Environment.CurrentDirectory + @"\要素備份";
+            if (!Directory.Exists(fpath))
+            {
+                Directory.CreateDirectory(fpath);
+            }
+            string fname = fpath +　@"\指標收集存檔總檔.xlsx";
+            if (!System.IO.File.Exists(fname))
+                return;
+            using (SLDocument sl = new SLDocument(fname))
+            {
+                for (int i = 0; i < 500; i++)
+                {
+                    if (string.IsNullOrEmpty(sl.GetCellValueAsString(i + 2, 1)))
+                        break;
+                    if (string.IsNullOrEmpty(sl.GetCellValueAsString(i + 2, 2)))
+                        continue;
+
+                    if (gbackups.Count > 0 && gbackups.ContainsKey(sl.GetCellValueAsString(i + 2, 1)))
+                    {
+                        continue;
+                    }
+                    List<MElements> lme = new List<MElements>();
+                    List<string> duplicate = new List<string>();
+                    for (int j = 0; j < 12; j++)
+                    {
+                        if (string.IsNullOrEmpty(sl.GetCellValueAsString(1, j + 2)))
+                            break;
+                        if (!DateTime.TryParse(sl.GetCellValueAsDateTime(1, j + 2).ToShortDateString(), out DateTime dts))
+                            continue;
+                        if (dts > DateTime.Now.AddMonths(-7) && dts < DateTime.Now)
+                        {
+                            if (duplicate.Contains(dts.ToString("yyyy/MM")))
+                                continue;
+                            else
+                                duplicate.Add(dts.ToString("yyyy/MM"));
+
+                            MElements data = new MElements
+                            {
+                                Element = sl.GetCellValueAsString(i + 2, 1).Trim(),
+                                ElementData = sl.GetCellValueAsString(i + 2, j + 2).Trim(),
+                                Eledate = dts
+                            };
+                            lme.Add(data);
+                        }
+                    }
+                    gbackups[sl.GetCellValueAsString(i + 2, 1)] = lme;
+
+                    try
+                    {
+                        if (gduplicate.ContainsKey(sl.GetCellValueAsString(i + 2, 1)))
+                        {
+                            var glists = gduplicate.Where(o => o.Key == sl.GetCellValueAsString(i + 2, 1)).First().Value;
+                            foreach (var x in glists)
+                            {
+                                if (!gbackups.ContainsKey(x) &&
+                                    gdata.Find(o => o.MeasureID == x) != null)
+                                {
+                                    gbackups[x] = lme;
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+
+                        MessageBox.Show(ex.Message);
+                    }
+                }
+
+                sl.CloseWithoutSaving();
+                sl.Dispose();
             }
         }
 
@@ -185,10 +265,10 @@ namespace MeasuresData
                         if (gcollect.Count > 0)
                         {
                             var number = from num in gcollect
-                                         where num.MeasureID == gdata[i].MeasureID && !string.IsNullOrEmpty(num.MeasureData)
+                                         where num.Element == gdata[i].MeasureID && !string.IsNullOrEmpty(num.ElementData)
                                          select num;
                             if (number != null && number.ToList().Count > 0)
-                                nsl.SetCellValue(index, 5, number.ToList().First().MeasureData);
+                                nsl.SetCellValue(index, 5, number.ToList().First().ElementData);
                         }
                         index++;
                     }
@@ -264,10 +344,10 @@ namespace MeasuresData
                         if (gcollect.Count > 0)
                         {
                             var number = from num in gcollect
-                                         where num.MeasureID == gdata[i].MeasureID && !string.IsNullOrEmpty(num.MeasureData)
+                                         where num.Element == gdata[i].MeasureID && !string.IsNullOrEmpty(num.ElementData)
                                          select num;
                             if (number != null && number.ToList().Count > 0)
-                                nsl.SetCellValue(index, 3, number.ToList().First().MeasureData);
+                                nsl.SetCellValue(index, 3, number.ToList().First().ElementData);
                         }
                         index++;
                     }
@@ -316,15 +396,15 @@ namespace MeasuresData
                         if (gcollect.Count > 0)
                         {
                             var numer = from num in gcollect
-                                         where num.MeasureID == gmeasure[i].Numerator && !string.IsNullOrEmpty(num.MeasureData)
+                                         where num.Element == gmeasure[i].Numerator && !string.IsNullOrEmpty(num.ElementData)
                                          select num;
                             if (numer != null && numer.ToList().Count > 0)
-                                nsl.SetCellValue(index, 5, numer.ToList().First().MeasureData);
+                                nsl.SetCellValue(index, 5, numer.ToList().First().ElementData);
                             var deno = from num in gcollect
-                                        where num.MeasureID == gmeasure[i].Denominator && !string.IsNullOrEmpty(num.MeasureData)
+                                        where num.Element == gmeasure[i].Denominator && !string.IsNullOrEmpty(num.ElementData)
                                         select num;
                             if (deno != null && deno.ToList().Count > 0)
-                                nsl.SetCellValue(index, 6, deno.ToList().First().MeasureData);
+                                nsl.SetCellValue(index, 6, deno.ToList().First().ElementData);
 
                         }
                         //nsl.SetCellValue(index, 5, gmeasure[i].Numerator);
@@ -376,12 +456,12 @@ namespace MeasuresData
             {
                 cn.Open();
                 
-                var list = cn.Query<Measures>(
+                var list = cn.Query<MElements>(
                     "SELECT * FROM MeasureTable WHERE MeasureID=@catg", new { catg = "EDP005-01" });
                 
                 foreach (var item in list)
                 {
-                    TxtBox1.Text += item.Year + "/" + item.Month + "=" + item.MeasureData + Environment.NewLine;
+                    TxtBox1.Text += item.Eledate.Year + "/" + item.Eledate.Month + "=" + item.ElementData + Environment.NewLine;
                 }
                 
             }
@@ -411,12 +491,17 @@ namespace MeasuresData
             public string User { get; set; }
         }
 
-        public class Measures
+        public class MElements
         {
-            public string MeasureID { get; set; }
-            public int Year { get; set; }
-            public int Month { get; set; }
-            public string MeasureData { get; set; }
+            public string Element { get; set; }
+            public DateTime Eledate { get; set; }
+            public string ElementData { get; set; }
+            public Dictionary<string, string> PreDdatas { get; set; }
+            public MElements()
+            {
+                PreDdatas = new Dictionary<string, string>();
+                Eledate = new DateTime();
+            }
         }
 
         public class FileStatusHelper
@@ -481,21 +566,20 @@ namespace MeasuresData
                             break;
                         if (string.IsNullOrEmpty(sl.GetCellValueAsString(i, 3)))
                             continue;
-                        Measures data = new Measures
+                        MElements data = new MElements
                         {
-                            MeasureID = sl.GetCellValueAsString(i, 3).Trim(),
-                            MeasureData = sl.GetCellValueAsString(i, 5).Trim(),
-                            Year = time.Year,
-                            Month = time.Month
+                            Element = sl.GetCellValueAsString(i, 3).Trim(),
+                            ElementData = sl.GetCellValueAsString(i, 5).Trim(),
+                            Eledate = time
                         };
                         if (gcollect.Count > 0)
                         {
                             bool dup = false;
                             foreach (var x in gcollect)
                             {
-                                if (data.MeasureID == x.MeasureID)
+                                if (data.Element == x.Element)
                                 {
-                                    duplicate.Add(x.MeasureID);
+                                    duplicate.Add(x.Element);
                                     dup = true;
                                     break;
                                 }
@@ -508,21 +592,20 @@ namespace MeasuresData
 
                         try
                         {
-                            if (gduplicate.ContainsKey(data.MeasureID))
+                            if (gduplicate.ContainsKey(data.Element))
                             {
-                                var glists = gduplicate.Where(o => o.Key == data.MeasureID).First().Value;
+                                var glists = gduplicate.Where(o => o.Key == data.Element).First().Value;
                                 foreach (var x in glists)
                                 {
-                                    if (gcollect.Find(o => o.MeasureID == x.ToString()) == null &&
+                                    if (gcollect.Find(o => o.Element == x.ToString()) == null &&
                                         gdata.Find(o => o.MeasureID == x.ToString()) != null)
                                     {
                                         //MessageBox.Show(x.ToString());
-                                        Measures dupdata = new Measures
+                                        MElements dupdata = new MElements
                                         {
-                                            MeasureID = x.ToString(),
-                                            MeasureData = data.MeasureData,
-                                            Year = data.Year,
-                                            Month = data.Month
+                                            Element = x.ToString(),
+                                            ElementData = data.ElementData,
+                                            Eledate = data.Eledate
                                         };
                                         gcollect.Add(dupdata);
                                     }
@@ -555,7 +638,7 @@ namespace MeasuresData
                 TxtBox1.Text += Environment.NewLine + string.Format("指標收回數量 : {0}/{1} ({2}%)", gcollect.Count, gdata.Count, gcollect.Count * 100 / gdata.Count) + 
                     Environment.NewLine;
 
-                gcollect.Sort((x, y) => { return x.MeasureID.CompareTo(y.MeasureID); });
+                gcollect.Sort((x, y) => { return x.Element.CompareTo(y.Element); });
 
                 string fpath = Environment.CurrentDirectory + @"\要素備份";
                 if (!Directory.Exists(fpath))
@@ -563,6 +646,7 @@ namespace MeasuresData
                     Directory.CreateDirectory(fpath);
                 }
                 string fname = @"\指標收集存檔" + DateTime.Now.AddMonths(-1).ToString("yyyy-M") + ".xlsx";
+                string fname2 = @"\指標收集存檔總檔.xlsx";
                 using (SLDocument nsl = new SLDocument())
                 {
 
@@ -572,11 +656,54 @@ namespace MeasuresData
                     nsl.SetCellValue(1, 2, DateTime.Now.AddMonths(-1).ToString("yyyy/M"));
                     for (int i = 0; i < gcollect.Count; i++)
                     {
-                        nsl.SetCellValue(i + 2, 1, gcollect[i].MeasureID);
-                        nsl.SetCellValue(i + 2, 2, gcollect[i].MeasureData);
+                        nsl.SetCellValue(i + 2, 1, gcollect[i].Element);
+                        nsl.SetCellValue(i + 2, 2, gcollect[i].ElementData);
                     }
+
                     nsl.SaveAs(fpath + fname);
+
+                    if (!System.IO.File.Exists(fpath + fname2))
+                    {
+                        SLDocument sl2 = new SLDocument(fpath + fname);
+                        sl2.SaveAs(fpath + fname2);
+                        sl2.Dispose();
+                        return;
+                    }
                     nsl.Dispose();
+                }
+
+                if (System.IO.File.Exists(fpath + fname2))
+                {
+                    using (SLDocument sl = new SLDocument(fpath + fname2))
+                    {
+                        if (!DateTime.TryParse(sl.GetCellValueAsDateTime(1, 2).ToShortDateString(), out DateTime dts))
+                        {
+                            sl.CloseWithoutSaving();
+                            return;
+                        }
+                        MessageBox.Show(dts.ToShortDateString());
+                        if ((dts.Month == DateTime.Now.AddMonths(-1).Month &&
+                            dts.Year == DateTime.Now.AddMonths(-1).Year) || dts >= DateTime.Now)
+                            return;
+                        sl.CopyColumn(2, 100, 3);
+                        sl.SetCellValue(1, 2, DateTime.Now.AddMonths(-1).ToString("yyyy/MM"));
+
+                        for (int i = 0; i < gcollect.Count; i++)
+                        {
+                            for (int j = 0; j < 500; j++)
+                            {
+                                if (string.IsNullOrWhiteSpace(sl.GetCellValueAsString(j + 2, 1)))
+                                    break;
+                                if (sl.GetCellValueAsString(j + 2, 1) == gcollect[i].Element)
+                                {
+                                    sl.SetCellValue(j + 2, 2, gcollect[i].ElementData);
+                                    break;
+                                }
+                            }
+                        }
+                        sl.SaveAs(fpath + fname2);
+                        sl.Dispose();
+                    }
                 }
             }
         }
@@ -599,7 +726,7 @@ namespace MeasuresData
             var newdata = newda.GroupBy(o => o.Depart)
                     .ToDictionary(o => o.Key, o => o.ToList());
 
-            var unitcounts = gdata.Where(o => !dup.Contains(o.MeasureID))
+            var unitcounts = gdata.Where(o => !SameEle.Contains(o.MeasureID))
                 .GroupBy(o => o.Depart)
                 .ToDictionary(o => o.Key, o => o.ToList().Count);
             TxtBox1.Text += Environment.NewLine + "指標收集單位數 : " + unitcounts.Count +
@@ -634,11 +761,14 @@ namespace MeasuresData
                 nsl.SetCellValue(1, 2, "監測單位");
                 nsl.SetCellValue(1, 3, "指標要素");
                 nsl.SetCellValue(1, 4, "指標(要素)名稱");
-                nsl.SetCellValue(1, 5, DateTime.Now.AddMonths(-1).ToString("yyyy/MM"));
+                for (int i = 0; i < 6; i++)
+                {
+                    nsl.SetCellValue(1, i + 5, DateTime.Now.AddMonths(-(i+1)).ToString("yyyy/MM"));
+                }
                 int index = 2;
                 for (int i = 0; i < x.Value.Count; i++)
                 {
-                    if (dup.Count > 0 && dup.Contains(x.Value[i].MeasureID))
+                    if (SameEle.Count > 0 && SameEle.Contains(x.Value[i].MeasureID))
                     {
                         continue;
                     }
@@ -646,10 +776,22 @@ namespace MeasuresData
                     nsl.SetCellValue(index, 2, x.Value[i].Depart);
                     nsl.SetCellValue(index, 3, x.Value[i].MeasureID);
                     nsl.SetCellValue(index, 4, x.Value[i].MeasureName);
+                    if (gbackups.Count > 0 && gbackups.ContainsKey(x.Value[i].MeasureID))
+                    {
+                        for (int j = 2; j < 7; j ++)
+                        {
+                            var data = gbackups[x.Value[i].MeasureID].Find(o => o.Eledate.Month == DateTime.Now.AddMonths(-j).Month
+                            && o.Eledate.Year == DateTime.Now.AddMonths(-j).Year);
+                            if (data == null)
+                                continue;
+                            
+                            nsl.SetCellValue(index, j + 4, data.ElementData);
+                        }
+                    }
                     index++;
                 }
-                string Refile = System.Environment.CurrentDirectory + @"\資料收集\" + x.Key + ".xlsx";
 
+                string Refile = System.Environment.CurrentDirectory + @"\資料收集\" + x.Key + ".xlsx";
                 nsl.SaveAs(Refile);
                 nsl.Dispose();
             }

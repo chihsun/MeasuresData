@@ -755,7 +755,6 @@ namespace MeasuresData
                 nsl.SetColumnStyle(2, style);
                 nsl.SetColumnStyle(3, style);
                 nsl.SetColumnStyle(4, style);
-                nsl.SetColumnStyle(5, style);
 
                 nsl.SetCellValue(1, 1, "指標群組");
                 nsl.SetCellValue(1, 2, "監測單位");
@@ -763,9 +762,11 @@ namespace MeasuresData
                 nsl.SetCellValue(1, 4, "指標(要素)名稱");
                 for (int i = 0; i < 6; i++)
                 {
+                    nsl.SetColumnStyle(i + 5, style);
                     nsl.SetCellValue(1, i + 5, DateTime.Now.AddMonths(-(i+1)).ToString("yyyy/MM"));
                 }
                 int index = 2;
+                style.Protection.Locked = false;
                 for (int i = 0; i < x.Value.Count; i++)
                 {
                     if (SameEle.Count > 0 && SameEle.Contains(x.Value[i].MeasureID))
@@ -776,6 +777,9 @@ namespace MeasuresData
                     nsl.SetCellValue(index, 2, x.Value[i].Depart);
                     nsl.SetCellValue(index, 3, x.Value[i].MeasureID);
                     nsl.SetCellValue(index, 4, x.Value[i].MeasureName);
+
+                    nsl.SetCellStyle(index, 5, style);
+
                     if (gbackups.Count > 0 && gbackups.ContainsKey(x.Value[i].MeasureID))
                     {
                         for (int j = 2; j < 7; j ++)
@@ -785,11 +789,20 @@ namespace MeasuresData
                             if (data == null)
                                 continue;
                             
-                            nsl.SetCellValue(index, j + 4, data.ElementData);
+                            nsl.SetCellValueNumeric(index, j + 4, data.ElementData);
                         }
                     }
                     index++;
                 }
+                SLSheetProtection sp = new SLSheetProtection();
+                sp.AllowInsertRows = false;
+                sp.AllowInsertColumns = false;
+                sp.AllowFormatCells = true;
+                sp.AllowDeleteColumns = false;
+                sp.AllowDeleteRows = false;
+                sp.AllowSelectUnlockedCells = true;
+                sp.AllowSelectLockedCells = false;
+                nsl.ProtectWorksheet(sp);
 
                 string Refile = System.Environment.CurrentDirectory + @"\資料收集\" + x.Key + ".xlsx";
                 nsl.SaveAs(Refile);

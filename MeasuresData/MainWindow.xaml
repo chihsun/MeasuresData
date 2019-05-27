@@ -18,5 +18,7 @@
         <Label Content="一" HorizontalAlignment="Left" Margin="33,60,0,0" VerticalAlignment="Top"/>
         <Label Content="二" HorizontalAlignment="Left" Margin="33,97,0,0" VerticalAlignment="Top"/>
         <Label Content="三" HorizontalAlignment="Left" Margin="257,60,0,0" VerticalAlignment="Top"/>
+        <Button Content="匯入過往要素資料" HorizontalAlignment="Left" Margin="297,103,0,0" VerticalAlignment="Top" Width="103" Click="BT_IMPORT_OLDDATA" RenderTransformOrigin="0.417,4.727"/>
+        <Button Content="匯出要素資料" HorizontalAlignment="Left" Margin="297,141,0,0" VerticalAlignment="Top" Width="103" Click="BT_EXPORT_ELEMENT" RenderTransformOrigin="0.417,4.727"/>
     </Grid>
 </Window>

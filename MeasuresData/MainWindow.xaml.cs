@@ -397,6 +397,23 @@ namespace MeasuresData
                         nsl.SetCellValue(index, 4, gmeasure[i].MeasureID);
                         if (gcollect.Count > 0)
                         {
+                            if (gmeasure[i].Numerator == "1")
+                                nsl.SetCellValue(index, 5, "1");
+                            else
+                            {
+                                var numer = gcollect.FirstOrDefault(o => o.Element == gmeasure[i].Numerator && !string.IsNullOrEmpty(o.ElementData));
+                                if (numer != null)
+                                    nsl.SetCellValue(index, 5, numer.ElementData);
+                            }
+                            if (gmeasure[i].Denominator == "1")
+                                nsl.SetCellValue(index, 6, "1");
+                            else
+                            {
+                                var deno = gcollect.FirstOrDefault(o => o.Element == gmeasure[i].Denominator && !string.IsNullOrEmpty(o.ElementData));
+                                if (deno != null)
+                                    nsl.SetCellValue(index, 6, deno.ElementData);
+                            }
+                            /*
                             var numer = from num in gcollect
                                         where num.Element == gmeasure[i].Numerator && !string.IsNullOrEmpty(num.ElementData)
                                         select num;
@@ -407,6 +424,7 @@ namespace MeasuresData
                                        select num;
                             if (deno != null && deno.ToList().Count > 0)
                                 nsl.SetCellValue(index, 6, deno.ToList().First().ElementData);
+                           */
 
                         }
                         //nsl.SetCellValue(index, 5, gmeasure[i].Numerator);

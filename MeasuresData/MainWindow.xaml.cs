@@ -551,19 +551,6 @@ namespace MeasuresData
 
         private void BT_IMPORT_RESULT(object sender, RoutedEventArgs e)
         {
-            /*
-            if (!Directory.Exists(System.Environment.CurrentDirectory + @"\要素備份"))
-            {
-                Directory.CreateDirectory(System.Environment.CurrentDirectory + @"\要素備份");
-            }
-            string fname = System.Environment.CurrentDirectory + @"\要素備份\指標收集存檔.xlsx";
-
-            SLDocument sl = new SLDocument(!System.IO.File.Exists(fname) ? "" : fname);
-            if (!string.IsNullOrEmpty(sl.GetCellValueAsString(1, 5)))
-            {
-
-            }
-            */
             gcollect.Clear();
 
             List<string> duplicate = new List<string>();
@@ -682,18 +669,20 @@ namespace MeasuresData
                     }
 
                     nsl.SaveAs(fpath + fname);
-
-                    if (!System.IO.File.Exists(fpath + fname2))
-                    {
-                        SLDocument sl2 = new SLDocument(fpath + fname);
-                        sl2.SaveAs(fpath + fname2);
-                        sl2.Dispose();
-                        return;
-                    }
                     nsl.Dispose();
                 }
+                if (!System.IO.File.Exists(fpath + fname))
+                    return;
 
-                if (System.IO.File.Exists(fpath + fname2))
+                if (!System.IO.File.Exists(fpath + fname2))
+                {
+                    using (SLDocument sl = new SLDocument(fpath + fname))
+                    {
+                        sl.SaveAs(fpath + fname2);
+                        sl.Dispose();
+                    }
+                }
+                else
                 {
                     using (SLDocument sl = new SLDocument(fpath + fname2))
                     {
@@ -936,7 +925,16 @@ namespace MeasuresData
             if (gbackups.Count <= 0 && gcollect.Count <= 0)
                 return;
 
-            //gcollect.Sort((x, y) => { return x.Element.CompareTo(y.Element); });
+            foreach (var x in gcollect)
+            {
+                if (gbackups.ContainsKey(x.Element))
+                {
+                    var dataex = gbackups[x.Element].FirstOrDefault(o => o.Element == x.Element && o.Eledate == x.Eledate);
+                    if (dataex != null)
+                        gbackups[x.Element].Remove(dataex);
+                    gbackups[x.Element].Add(x);
+                }
+            }
 
             var sortbacks = gbackups.OrderBy(o => o.Key).ToDictionary(o => o.Key, p => p.Value);
 
@@ -946,7 +944,7 @@ namespace MeasuresData
             {
                 Directory.CreateDirectory(fpath);
             }
-            string fname = @"\指標收集存檔" + DateTime.Now.AddMonths(-1).ToString("yyyy-M") + ".xlsx";
+            string fname = @"\指標收集總存檔" + DateTime.Now.AddMonths(-1).ToString("yyyy-M") + ".xlsx";
             //string fname2 = @"\指標收集存檔總檔.xlsx";
 
             using (SLDocument sl = new SLDocument())
@@ -954,6 +952,7 @@ namespace MeasuresData
                 sl.SetColumnWidth(1, 15);
                 sl.SetColumnWidth(2, 15);
                 sl.SetCellValue(1, 1, "指標要素");
+                SLStyle style = sl.CreateStyle();
                 for (int i = 0; i < 6; i++)
                     sl.SetCellValue(1, i + 2, DateTime.Now.AddMonths(-1 - i).ToString("yyyy/M"));
                 int index = 0;
@@ -965,10 +964,11 @@ namespace MeasuresData
                     {
                         for (int i = 0; i < 6; i++)
                         {
+                            int num;
                             if (y.Eledate.Year == DateTime.Now.AddMonths(-1 - i).Year
-                                && y.Eledate.Month == DateTime.Now.AddMonths(-1 - i).Month)
+                                && y.Eledate.Month == DateTime.Now.AddMonths(-1 - i).Month && int.TryParse(y.ElementData, out num))
                             {
-                                sl.SetCellValue(index + 2, i + 2, y.ElementData);
+                                sl.SetCellValue(index + 2, i + 2, num);
                             }
                         }
                     }
@@ -976,6 +976,172 @@ namespace MeasuresData
                     index++;
                 }
 
+                sl.SaveAs(fpath + fname);
+                sl.Dispose();
+            }
+        }
+
+        private void BT_EXPORT_MEASURE(object sender, RoutedEventArgs e)
+        {
+            if (gmeasure.Count <= 0)
+                return;
+            if (gbackups.Count <= 0)
+                return;
+            string fpath = Environment.CurrentDirectory + @"\要素備份";
+
+            if (!Directory.Exists(fpath))
+            {
+                Directory.CreateDirectory(fpath);
+            }
+            string fname = @"\指標數據總資料" + DateTime.Now.AddMonths(-1).ToString("yyyy-M") + ".xlsx";
+
+            var sortbacks = gbackups.OrderBy(o => o.Key).ToDictionary(o => o.Key, p => p.Value.OrderByDescending(o => o.ElementData).ToList());
+
+            using (SLDocument sl = new SLDocument())
+            {
+                SLStyle style;
+                style = sl.CreateStyle();
+                style.Alignment.Horizontal = HorizontalAlignmentValues.Center;
+                style.Alignment.Vertical = VerticalAlignmentValues.Center;
+                style.Alignment.WrapText = true;
+                style.Font.FontSize = 12;
+                sl.SetColumnWidth(1, 15);
+                sl.SetColumnWidth(2, 10);
+                sl.SetColumnWidth(3, 40);
+                sl.SetColumnStyle(1, style);
+                sl.SetColumnStyle(2, style);
+                sl.SetColumnStyle(3, style);
+
+                sl.SetCellValue(1, 1, "指標群組");
+                sl.SetCellValue(1, 2, "指標代號");
+                sl.SetCellValue(1, 3, "指標名稱");
+                for (int i = 0; i < 12; i++)
+                    sl.SetCellValue(1, i + 4, DateTime.Now.AddMonths(-i - 1).ToString("yyyy/MM"));
+
+                int index = 2;
+                foreach (var x in gmeasure)
+                {
+                    sl.SetCellValue(index, 1, x.Group);
+                    sl.SetCellValue(index, 2, x.MeasureID);
+                    sl.SetCellValue(index, 3, x.MeasureName);
+                    sl.MergeWorksheetCells(index, 1, index + 2, 1);
+                    sl.MergeWorksheetCells(index, 2, index + 2, 2);
+                    sl.MergeWorksheetCells(index, 3, index + 2, 3);
+                    int status = 0;
+                    var Numes = sortbacks.FirstOrDefault(o => o.Key == x.Numerator).Value;
+
+                    List<List<MElements>> DenosPlus = new List<List<MElements>>();
+
+                    var Denos = sortbacks.FirstOrDefault(o => o.Key == x.Denominator).Value;
+
+                    if (x.Denominator.Contains("+"))
+                    {
+                        status = 1;
+                        var elements = x.Denominator.Split('+').ToList();
+                        if (elements.Count > 0)
+                        {
+                            foreach (var ele in elements)
+                            {
+                                var em = sortbacks.FirstOrDefault(o => o.Key == ele).Value;
+                                if (em != null)
+                                    DenosPlus.Add(em);
+                            }
+                        }
+                    }
+                    else if (x.Denominator.Contains(".") && x.Denominator.Contains("-"))
+                    {
+                        status = 2;
+                        var elements = x.Denominator.Split('-').ToList();
+                        if (elements.Count > 0)
+                        {
+                            foreach (var ele in elements)
+                            {
+                                var em = sortbacks.FirstOrDefault(o => o.Key == ele).Value;
+                                if (em != null)
+                                    DenosPlus.Add(em);
+                            }
+                        }
+                    }
+                    for (int i = 0; i < 12; i++)
+                    {
+                        if (x.Numerator == "1")
+                            sl.SetCellValue(index + 1,  i + 4, 1);
+                        else if (Numes != null)
+                        {
+                            var nume = Numes.FirstOrDefault(o => o.Eledate.Year == DateTime.Now.AddMonths(-i - 1).Year
+                            && o.Eledate.Month == DateTime.Now.AddMonths(-i - 1).Month);
+                            if (nume != null)
+                            {
+                                int numok;
+                                if (int.TryParse(nume.ElementData, out numok))
+                                    sl.SetCellValue(index + 1, i + 4, numok);
+                            }
+                        }
+
+                        if (x.Denominator == "1")
+                            sl.SetCellValue(index + 2, i + 4, "NA");
+                        else if (Denos != null)
+                        {
+                            var deno = Denos.FirstOrDefault(o => o.Eledate.Year == DateTime.Now.AddMonths(-i - 1).Year
+                            && o.Eledate.Month == DateTime.Now.AddMonths(-i - 1).Month);
+                            if (deno != null)
+                            {
+                                int numok;
+                                if (int.TryParse(deno.ElementData, out numok))
+                                    sl.SetCellValue(index + 2, i + 4, numok);
+                            }
+                        }
+                        else if (DenosPlus.Count > 0)
+                        {
+                            try
+                            {
+                                int deno = 0;
+                                foreach (var ele in DenosPlus)
+                                {
+                                    var de = ele.FirstOrDefault(o => o.Eledate.Year == DateTime.Now.AddMonths(-i - 1).Year
+                                && o.Eledate.Month == DateTime.Now.AddMonths(-i - 1).Month);
+                                    if (de == null)
+                                    {
+                                        break;
+                                    }
+                                    int num;
+                                    if (!Int32.TryParse(de.ElementData, out num))
+                                        break;
+                                    if (status == 1)
+                                    {
+                                        deno += num;
+                                    }
+                                    else if (status == 2)
+                                    {
+                                        if (deno == 0)
+                                            deno = num;
+                                        else
+                                            deno -= num;
+                                    }
+                                }
+                                if (deno > 0)
+                                    sl.SetCellValue(index + 2, i + 4, deno);
+                            }
+                            catch (Exception ex)
+                            {
+                                MessageBox.Show(ex.ToString());
+                            }
+                        }
+
+                        if (!string.IsNullOrEmpty(sl.GetCellValueAsString(index + 2, i + 4)))
+                        {
+                            double nu, de;
+                            if (double.TryParse(sl.GetCellValueAsString(index + 1, i + 4), out nu)
+                                && double.TryParse(sl.GetCellValueAsString(index + 2, i + 4) == "NA" ? "1" : sl.GetCellValueAsString(index + 2, i + 4), out de))
+                            {
+                                if (de != 0)
+                                    sl.SetCellValue(index, i + 4, nu / de);
+                            }
+                        }
+                    }
+                    index += 3;
+                }
+                MessageBox.Show("指標匯出結束");
                 sl.SaveAs(fpath + fname);
                 sl.Dispose();
             }

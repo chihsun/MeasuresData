@@ -234,24 +234,26 @@ namespace MeasuresData
                     {
                         if (string.IsNullOrEmpty(sl.GetCellValueAsString(1, j + 2)))
                             break;
-                        if (string.IsNullOrEmpty(sl.GetCellValueAsString(2, j + 2)))
-                            continue;
                         if (!DateTime.TryParse(sl.GetCellValueAsString(1, j + 2), out DateTime dts))
-                            continue;
+                            break;
+                        //if (string.IsNullOrEmpty(sl.GetCellValueAsString(2, j + 2)))
+                        //    continue;
                         if (dts > DateTime.Now.AddMonths(-1 - 12) && dts < DateTime.Now)
                         {
                             if (duplicate.Contains(dts.ToString("yyyy/MM")))
                                 continue;
                             else
                                 duplicate.Add(dts.ToString("yyyy/MM"));
-
-                            MElement data = new MElement
+                            if (!string.IsNullOrEmpty(sl.GetCellValueAsString(i + 2, j + 2)))
                             {
-                                ElementID = sl.GetCellValueAsString(i + 2, 1).Trim(),
-                                ElementRecord = sl.GetCellValueAsString(i + 2, j + 2).Trim(),
-                                ElementDate = dts
-                            };
-                            lme.Add(data);
+                                MElement data = new MElement
+                                {
+                                    ElementID = sl.GetCellValueAsString(i + 2, 1).Trim(),
+                                    ElementRecord = sl.GetCellValueAsString(i + 2, j + 2).Trim(),
+                                    ElementDate = dts
+                                };
+                                lme.Add(data);
+                            }
                         }
                     }
                     gbackups[sl.GetCellValueAsString(i + 2, 1)] = lme;
@@ -331,7 +333,7 @@ namespace MeasuresData
                     {
                         if (gdata[i].Group != type)
                             continue;
-                        nsl.SetCellValue(index, 1, DateTime.Now.ToString("yyyy/MM"));
+                        nsl.SetCellValue(index, 1, DateTime.Now.AddMonths(-1).ToString("yyyy/MM"));
                         nsl.SetCellValue(index, 2, gdata[i].ElementID);
                         nsl.SetCellValue(index, 3, gdata[i].ElementName);
                         nsl.SetCellValue(index, 4, "月");
@@ -341,7 +343,7 @@ namespace MeasuresData
                                          where num.ElementID == gdata[i].ElementID && !string.IsNullOrEmpty(num.ElementRecord)
                                          select num;
                             if (number != null && number.ToList().Count > 0)
-                                nsl.SetCellValue(index, 5, number.ToList().First().ElementRecord);
+                                nsl.SetCellValue(index, 5, Convert.ToDouble(number.ToList().First().ElementRecord));
                         }
                         index++;
                     }
@@ -460,8 +462,8 @@ namespace MeasuresData
                         if (gmeasure[i].Group != type)
                             continue;
                         nsl.SetCellValue(index, 1, "JB0005");
-                        nsl.SetCellValue(index, 2, DateTime.Now.AddYears(-1911).Year);
-                        nsl.SetCellValue(index, 3, DateTime.Now.Month);
+                        nsl.SetCellValue(index, 2, DateTime.Now.AddMonths(-1).AddYears(-1911).Year);
+                        nsl.SetCellValue(index, 3, DateTime.Now.AddMonths(-1).Month);
                         nsl.SetCellValue(index, 4, gmeasure[i].MeasureID);
                         if (gcollect.Count > 0)
                         {
@@ -471,7 +473,7 @@ namespace MeasuresData
                             {
                                 var numer = gcollect.FirstOrDefault(o => o.ElementID == gmeasure[i].Numerator && !string.IsNullOrEmpty(o.ElementRecord));
                                 if (numer != null)
-                                    nsl.SetCellValue(index, 5, numer.ElementRecord);
+                                    nsl.SetCellValue(index, 5, Convert.ToDouble(numer.ElementRecord));
                             }
                             if (gmeasure[i].Denominator == "1")
                                 nsl.SetCellValue(index, 6, "1");
@@ -479,7 +481,7 @@ namespace MeasuresData
                             {
                                 var deno = gcollect.FirstOrDefault(o => o.ElementID == gmeasure[i].Denominator && !string.IsNullOrEmpty(o.ElementRecord));
                                 if (deno != null)
-                                    nsl.SetCellValue(index, 6, deno.ElementRecord);
+                                    nsl.SetCellValue(index, 6, Convert.ToDouble(deno.ElementRecord));
                             }
                             /*
                             var numer = from num in gcollect
@@ -559,7 +561,6 @@ namespace MeasuresData
             gcollect.Clear();
 
             List<string> duplicate = new List<string>();
-            List<string> ErInput = new List<string>();
 
             string folderName = System.Environment.CurrentDirectory + @"\資料匯總";
             try
@@ -587,7 +588,7 @@ namespace MeasuresData
                         double rd;
                         if (!Double.TryParse(sl.GetCellValueAsString(i, 5).Trim(), out rd))
                         {
-                            ErInput.Add(sl.GetCellValueAsString(i, 5).Trim());
+                            MessageBox.Show("指標: " + sl.GetCellValueAsString(i, 3).Trim() + "之數值有誤 (" + sl.GetCellValueAsString(i, 5).Trim() + ")");
                             continue;
                         }
                         MElement data = new MElement
@@ -788,7 +789,7 @@ namespace MeasuresData
                                             {
                                                 if (!o.Contains("+") && gcollect.FirstOrDefault(z => z.ElementID == o) == null)
                                                 {
-                                                    MessageBox.Show(o);
+                                                    //MessageBox.Show(o);
                                                     gcollect.Add(new MElement
                                                     {
                                                         ElementID = o,
@@ -866,7 +867,7 @@ namespace MeasuresData
                 {
                     TxtBox1.Text += Environment.NewLine + string.Format("指標收回數量 : {0}/{1} ({2}%)", gcollect.Count, gdata.Count, gcollect.Count * 100 / gdata.Count) +
                         Environment.NewLine;
-                    gcollect.ForEach((o) => { TxtBox1.Text += string.Join(" , ", o.ElementID); });
+                    //gcollect.ForEach((o) => { TxtBox1.Text += string.Join(" , ", o.ElementID); });
                     gcollect.Sort((x, y) => { return x.ElementID.CompareTo(y.ElementID); });
 
                     string fpath = Environment.CurrentDirectory + @"\要素備份";
@@ -886,7 +887,7 @@ namespace MeasuresData
                         for (int i = 0; i < gcollect.Count; i++)
                         {
                             nsl.SetCellValue(i + 2, 1, gcollect[i].ElementID);
-                            nsl.SetCellValue(i + 2, 2, gcollect[i].ElementRecord);
+                            nsl.SetCellValue(i + 2, 2, Convert.ToDouble(gcollect[i].ElementRecord));
                         }
 
                         nsl.SaveAs(fpath + fname);
@@ -928,7 +929,7 @@ namespace MeasuresData
                                         break;
                                     if (sl.GetCellValueAsString(j + 2, 1) == x.ElementID)
                                     {
-                                        sl.SetCellValue(j + 2, 2, x.ElementRecord);
+                                        sl.SetCellValue(j + 2, 2, Convert.ToDouble(x.ElementRecord));
                                         oldele = true;
                                         break;
                                     }
@@ -939,7 +940,7 @@ namespace MeasuresData
                                     int slrows = wsstats.EndRowIndex;
 
                                     sl.SetCellValue(slrows + 1, 1, x.ElementID);
-                                    sl.SetCellValue(slrows + 1, 2, x.ElementRecord);
+                                    sl.SetCellValue(slrows + 1, 2, Convert.ToDouble(x.ElementRecord));
                                 }
                             }
 
@@ -1204,7 +1205,7 @@ namespace MeasuresData
                 using (SLDocument sl = new SLDocument())
                 {
                     sl.SetColumnWidth(1, 15);
-                    sl.SetColumnWidth(2, 15);
+                    //sl.SetColumnWidth(2, 15);
                     sl.SetCellValue(1, 1, "指標要素");
                     SLStyle style = sl.CreateStyle();
                     for (int i = 0; i < 12; i++)

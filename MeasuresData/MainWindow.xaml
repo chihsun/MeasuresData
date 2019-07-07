@@ -22,5 +22,6 @@
         <Button Content="匯出要素資料" HorizontalAlignment="Left" Margin="297,141,0,0" VerticalAlignment="Top" Width="103" Click="BT_EXPORT_ELEMENT" RenderTransformOrigin="0.417,4.727"/>
         <Button Content="匯出指標資料" HorizontalAlignment="Left" Margin="297,179,0,0" VerticalAlignment="Top" Width="103" Click="BT_EXPORT_MEASURE" RenderTransformOrigin="0.417,4.727"/>
         <Button Content="匯出圖表曲線" HorizontalAlignment="Left" Margin="510,179,0,0" VerticalAlignment="Top" Width="103" Click="BT_EXPORT_CHART" RenderTransformOrigin="0.417,4.727"/>
+        <Button Content="匯出自訂項目" HorizontalAlignment="Left" Margin="510,27,0,0" VerticalAlignment="Top" Width="103" Click="BT_EXPORT_CUSTOM" RenderTransformOrigin="0.417,4.727"/>
     </Grid>
 </Window>

@@ -34,9 +34,12 @@ namespace MeasuresData
             public string MeasureID { get; set; }
             public string MeasureName { get; set; }
             public string Numerator { get; set; }
+            public string NumeratorName { get; set; }
             public string Denominator { get; set; }
+            public string DenominatorName { get; set; }
             public string Threshold { get; set; }
             public string Frequency { get; set; }
+            public bool Positive { get; set; }
             public string User { get; set; }
         }
 
@@ -1623,6 +1626,8 @@ namespace MeasuresData
 
         private void BT_EXPORT_CHART(object sender, RoutedEventArgs e)
         {
+            var spctype = SPCtype.P;
+
             string fpath = Environment.CurrentDirectory + @"\要素備份";
 
             if (!Directory.Exists(fpath))
@@ -1634,24 +1639,31 @@ namespace MeasuresData
                 return;
             try
             {
+                List<string> alphabet = Enumerable.Range(0, 26).Select(i => Convert.ToChar('A' + i).ToString()).ToList();
                 using (SLDocument sl = new SLDocument(fpath + fname))
                 {
                     SLDocument sl2 = new SLDocument();
-                    sl2.SetCellValue(3, 2, sl.GetCellValueAsString(2, 2) + sl.GetCellValueAsString(2, 3) + "(‰)");
-                    sl2.SetCellValue(4, 2, "平均值");
-                    sl2.SetCellValue(5, 2, "管制圖上限");
-                    sl2.SetCellValue(6, 2, "管制圖下限");
+                    sl2.SetCellValue(2, 2, sl.GetCellValueAsString(2, 2) + sl.GetCellValueAsString(2, 3) + "(‰)");
+                    sl2.SetCellValue(3, 2, "平均值");
+                    sl2.SetCellValue(4, 2, "管制圖上限 (2α)");
+                    sl2.SetCellValue(5, 2, "管制圖下限 (2α)");
+                    sl2.SetCellValue(6, 2, "管制圖上限 (3α)");
+                    sl2.SetCellValue(7, 2, "管制圖下限 (3α)");
+                    sl2.SetCellValue(8, 2, "分子(死亡人數(含病危自動出院))");
+                    sl2.SetCellValue(9, 2, "分母(死亡人數(含病危自動出院)+出院人次 (不含死亡及病危自動出院))");
                     //double datotal = 0;
                     //List<double> datalist = new List<double>();
-                    for (int i= 0; i < 12; i++)
+                    for (int i = 0; i < 12; i++)
                     {
-                        sl2.SetCellValue(2, 3 + i, sl.GetCellValueAsString(1, 3 + 12 - i));
-                        sl2.SetCellValue(3, 3 + i, sl.GetCellValueAsDouble(2, 3 + 12 - i) * 10);
-                        sl2.SetCellValue(4, 3 + i, "=AVERAGE(C3:N3)");
-                        //datotal += sl.GetCellValueAsDouble(2, 4 + 5 - i) * 10;
-                        //datalist.Add(sl.GetCellValueAsDouble(2, 4 + 5 - i) * 10);
+                        sl2.SetCellValue(1, 3 + i, sl.GetCellValueAsString(1, 3 + 12 - i));
+                        sl2.SetCellValue(8, 3 + i, sl.GetCellValueAsDouble(3, 3 + 12 - i));
+                        sl2.SetCellValue(9, 3 + i, sl.GetCellValueAsDouble(4, 3 + 12 - i));
                     }
-                    sl2.SetCellValue(4, 3 + 12 + 2, "=STDEV(C3:N3)");
+                    //sl2.SetCellValue(2, 3 + 12 + 2, "α");
+                    sl2.SetCellValue(2, 4 + 12 + 2, "u or p");
+                    sl2.SetCellValue(3, 4 + 12 + 2, "=SUM(C8:N8) / SUM(C9:N9)");
+                    sl2.SetCellValue(2, 5 + 12 + 2, "n");
+                    sl2.SetCellValue(3, 5 + 12 + 2, "=AVERAGE(C9:N9)");
                     //var datastatic = StSummary(datalist);
                     for (int i = 0; i < 12; i++)
                     {
@@ -1660,27 +1672,82 @@ namespace MeasuresData
                         //sl2.SetCellValue(6, 3 + i, sl2.GetCellValueAsDouble(4, 3) - sl2.GetCellValueAsDouble(4, 3 + 7) * 2);
                         //sl2.SetCellValue(5, 3 + i, datastatic["Mean"] + datastatic["StandardDeviation"] * 2);
                         //sl2.SetCellValue(6, 3 + i, datastatic["Mean"] - datastatic["StandardDeviation"] * 2);
-                        sl2.SetCellValue(5, 3 + i, "= C4 + Q4 * 2");
-                        sl2.SetCellValue(6, 3 + i, "= C4 - Q4 * 2");
+                        //sl2.SetCellValue(2, 3 + i, sl.GetCellValueAsDouble(2, 3 + 12 - i) * 10);
+                        //sl2.SetCellValue(2, 3 + i, sl2.GetCellValueAsDouble(9, 3 + i) == 0 ? "0" :((sl2.GetCellValueAsDouble(8, 3 + i) / sl2.GetCellValueAsDouble(9, 3 + i)) * 100).ToString());
+                        //sl2.SetCellValue(3, 3 + i, "=AVERAGE(C2:N2)");
+                        string sigma = string.Empty;
+                        string amplify = string.Empty;
+                        string average = "R3";
+                        string measure = string.Empty;
+                        if (spctype == SPCtype.P)
+                        {
+                            amplify = " * 1000";
+                            sigma = string.Format("SQRT(R3 * (1 - R3) / {0}9)", alphabet[2 + i]);
+                            measure = string.Format("=({0}8 / {0}9){1}", alphabet[2 + i], amplify);
+                        }
+                        else if (spctype == SPCtype.U)
+                        {
+                            amplify = string.Empty;
+                            sigma = string.Format("SQRT(R3 / {0}9)", alphabet[2 + i]);
+                            measure = string.Format("=({0}8 / {0}9){1}", alphabet[2 + i], amplify);
+                        }
+                        else if (spctype == SPCtype.C)
+                        {
+                            amplify = string.Empty;
+                            sigma = "SQRT(R3)";
+                            measure = string.Format("=({0}8)", alphabet[2 + i]);
+                        }
+                        else if (spctype == SPCtype.nP)
+                        {
+                            average = "S3 * R3";
+                            amplify = string.Empty;
+                            sigma = "SQRT(S3 * R3 * (1 - R3))";
+                            measure = string.Format("=({0}8)", alphabet[2 + i]);
+                        }
+                        if (sl2.GetCellValueAsDouble(9, 3 + i) == 0)
+                            sl2.SetCellValue(2, 3 + i, 0);
+                        else
+                            sl2.SetCellValue(2, 3 + i, measure);
+                        sl2.SetCellValue(3, 3 + i, string.Format("=({0}){1}", average, amplify));
+                        sl2.SetCellValue(4, 3 + i, string.Format("=({0} + ({1} * 2)){2}", average, sigma, amplify));
+                        sl2.SetCellValue(5, 3 + i, string.Format("=({0} - ({1} * 2)){2}", average, sigma, amplify));
+                        sl2.SetCellValue(6, 3 + i, string.Format("=({0} + ({1} * 3)){2}", average, sigma, amplify));
+                        sl2.SetCellValue(7, 3 + i, string.Format("=({0} - ({1} * 3)){2}", average, sigma, amplify));
                     }
 
-                    sl.CloseWithoutSaving();
+                    sl2.SetColumnWidth(2, 25);
+                    SLStyle style;
+                    style = sl2.CreateStyle();
+                    style.Alignment.Horizontal = HorizontalAlignmentValues.Center;
+                    style.Alignment.Vertical = VerticalAlignmentValues.Center;
+                    style.Alignment.WrapText = true;
+                    style.Font.FontSize = 12;
+                    sl2.SetColumnStyle(2, style);
+                    sl2.SetRowStyle(1, style);
 
                     double fChartHeight = 20;
                     double fChartWidth = 10;
                     SLChart chart;
-                    chart = sl2.CreateChart("B2", "N6");
+                    chart = sl2.CreateChart("B1", "N7");
                     chart.SetChartType(SLLineChartType.Line);
                     chart.SetChartStyle(SLChartStyle.Style5);
-                    chart.SetChartPosition(8, 2, 8 + fChartHeight, 2 + fChartWidth);
+                    chart.SetChartPosition(11, 2, 11 + fChartHeight, 2 + fChartWidth);
+
+                    chart.PrimaryTextAxis.TickLabelPosition = DocumentFormat.OpenXml.Drawing.Charts.TickLabelPositionValues.Low;
 
                     SLDataSeriesOptions dso;
                     dso = chart.GetDataSeriesOptions(3);
-                    dso.Line.DashType = DocumentFormat.OpenXml.Drawing.PresetLineDashValues.DashDot;
+                    dso.Line.DashType = DocumentFormat.OpenXml.Drawing.PresetLineDashValues.Dot;
                     chart.SetDataSeriesOptions(3, dso);
                     chart.SetDataSeriesOptions(4, dso);
-                    dso.Line.DashType = DocumentFormat.OpenXml.Drawing.PresetLineDashValues.Dot;
-                    chart.SetDataSeriesOptions(2, dso);
+                    dso.Line.DashType = DocumentFormat.OpenXml.Drawing.PresetLineDashValues.DashDot;
+                    chart.SetDataSeriesOptions(5, dso);
+                    chart.SetDataSeriesOptions(6, dso);
+
+                    dso = chart.GetDataSeriesOptions(1);
+                    dso.Marker.Symbol = DocumentFormat.OpenXml.Drawing.Charts.MarkerStyleValues.Circle;
+                    dso.Line.SetSolidLine(System.Drawing.Color.Chocolate, 0);
+                    chart.SetDataSeriesOptions(1, dso);
                     sl2.InsertChart(chart);
                     sl2.SaveAs(fpath + @"\Chart-指標數據總資料" + DateTime.Now.AddMonths(-1).ToString("yyyy-MM") + ".xlsx");
                 }
@@ -1690,6 +1757,100 @@ namespace MeasuresData
                 MessageBox.Show(ex.ToString());
             }
             MessageBox.Show("匯出圖表成功");
+        }
+
+        private void BT_EXPORT_CUSTOM(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
+            dlg.InitialDirectory = Environment.CurrentDirectory;
+            dlg.Title = "選取自訂檔案";
+            dlg.Filter = "MES files (*.mes)|*.mes";
+            if (dlg.ShowDialog() == true)
+            {
+                LoadCustom(dlg.FileName);
+            }
+        }
+        public void LoadCustom(string fname)
+        {
+            if (!System.IO.File.Exists(fname))
+                return;
+            string[] datas = File.ReadAllLines(fname);
+            string data = datas.FirstOrDefault(x => x.Substring(0, 1) != "#");
+            List<string> customs = data.Split(';').ToList();
+            if (customs.Count <= 0)
+                return;
+            var incus = customs.ConvertAll(s => Int32.Parse(s)).ToList();
+            List<MElement> sdata = new List<MElement>();
+            List<MMeasure> smeasure = new List<MMeasure>();
+            string gtype;
+            switch (incus[0])
+            {
+                case 0:
+                    gtype = "TCPI";
+                    break;
+                case 1:
+                    gtype = "THIS";
+                    break;
+                case 2:
+                    gtype = "HACMI";
+                    break;
+                case 3:
+                    gtype = "";
+                    break;
+                default:
+                    gtype = "TCPI";
+                    break;
+            };
+            if (!string.IsNullOrEmpty(gtype))
+                sdata = gdata.Where(x => x.Group == gtype).ToList();
+            else
+                sdata = gdata;
+    }
+        private enum SPCtype
+        {
+            U,
+            C,
+            P,
+            I,
+            nP,
+            Xbar_S,
+            Xbar_R
+        }
+        private enum IndicatorGroup
+        {
+            TCPI,
+            THIS,
+            HACMI,
+            ALL
+        }
+        private enum CustomType
+        {
+            E_Group,
+            E_Depart,
+            E_ELEID,
+            E_ELEName,
+            E_Record,
+            E_Frequency,
+            E_User,
+            E_MeasureID,
+            E_MeasureName,
+            E_Numerator,
+            E_NumeratorName,
+            E_Denominator,
+            E_DenominatorName,
+            E_Threshold,
+            E_Date_1,
+            E_Date_2,
+            E_Date_3,
+            E_Date_4,
+            E_Date_5,
+            E_Date_6,
+            E_Date_7,
+            E_Date_8,
+            E_Date_9,
+            E_Date_10,
+            E_Date_11,
+            E_Date_12,
         }
     }
 }

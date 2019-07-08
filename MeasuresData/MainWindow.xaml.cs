@@ -41,6 +41,7 @@ namespace MeasuresData
             public string Frequency { get; set; }
             public bool Positive { get; set; }
             public string User { get; set; }
+            public Dictionary<string, List<double>> Records = new Dictionary<string, List<double>>();
         }
 
         public class MElement
@@ -335,7 +336,9 @@ namespace MeasuresData
                         MeasureID = sl2.GetCellValueAsString(i + 2, 2).Trim(),
                         MeasureName = sl2.GetCellValueAsString(i + 2, 3).Trim(),
                         Numerator = sl2.GetCellValueAsString(i + 2, 4).Trim(),
-                        Denominator = sl2.GetCellValueAsString(i + 2, 6).Trim()
+                        NumeratorName = sl2.GetCellValueAsString(i + 2, 5).Trim(),
+                        Denominator = sl2.GetCellValueAsString(i + 2, 6).Trim(),
+                        DenominatorName = sl2.GetCellValueAsString(i + 2, 7).Trim(),
                     };
 
                     gmeasure.Add(data);
@@ -345,6 +348,25 @@ namespace MeasuresData
 
                 MessageBox.Show("匯入成功 : " + gmeasure.Count.ToString());
 
+                if (gmeasure.Count > 0)
+                {
+                    List<string> group = new List<string>() { "全部" };
+                    foreach (var x in gmeasure)
+                    {
+                        if (group.Contains(x.Group))
+                            continue;
+                        else
+                        {
+                            group.Add(x.Group);
+                        }
+                    }
+                    Combx1.ItemsSource = group;
+                    Combx2.ItemsSource = gmeasure.Select(o => o.MeasureID + ":" + o.MeasureName).ToList();
+                    Combx1.SelectedIndex = 0;
+                    List<string> spctype = new List<string>() { "Default", "U", "C", "P", "I", "nP", "Xbar_S", "Xbar_R" };
+                    Combx3.ItemsSource = spctype;
+                    Combx3.SelectedIndex = 0;
+                }
                 LoadDataBASE();
             }
             catch (Exception ex)
@@ -1598,6 +1620,10 @@ namespace MeasuresData
                                     MessageBox.Show(ex.ToString());
                                 }
                             }
+                            //將分子、分母數據加回 gmeasure
+                            if (!x.Records.ContainsKey(DateTime.Now.AddMonths(-i - 1).ToString("yyyy/MM")))
+                                x.Records.Add(DateTime.Now.AddMonths(-i - 1).ToString("yyyy/MM"),
+                                new List<double>() { sl.GetCellValueAsDouble(index + 1, i + 4), sl.GetCellValueAsDouble(index + 2, i + 4) });
 
                             if (!string.IsNullOrEmpty(sl.GetCellValueAsString(index + 2, i + 4)))
                             {
@@ -1626,7 +1652,22 @@ namespace MeasuresData
 
         private void BT_EXPORT_CHART(object sender, RoutedEventArgs e)
         {
-            var spctype = SPCtype.P;
+            if (gmeasure.Count < 0)
+                return;
+            SPCtype spctype;
+            if (Combx3.SelectedIndex < 0 || Combx2.SelectedIndex < 0)
+                return;
+            else if (Combx3.SelectedIndex == 0)
+            {
+                spctype = SPCtype.P;
+            }
+            else
+                spctype = (SPCtype)Combx3.SelectedIndex;
+
+            var selmeasure = Combx2.SelectedValue.ToString().Split(':').FirstOrDefault();
+            var smeasure = gmeasure.FirstOrDefault(o => o.MeasureID == selmeasure);
+            if (smeasure == null || smeasure.Records.Count <= 0)
+                return;
 
             string fpath = Environment.CurrentDirectory + @"\要素備份";
 
@@ -1634,9 +1675,144 @@ namespace MeasuresData
             {
                 Directory.CreateDirectory(fpath);
             }
+            try
+            {
+                List<string> alphabet = Enumerable.Range(0, 26).Select(i => Convert.ToChar('A' + i).ToString()).ToList();
+                using (SLDocument sl = new SLDocument())
+                {
+                    sl.SetCellValue(2, 2, Combx2.SelectedValue.ToString());
+                    sl.SetCellValue(3, 2, "平均值");
+                    sl.SetCellValue(4, 2, "管制圖上限 (2α)");
+                    sl.SetCellValue(5, 2, "管制圖下限 (2α)");
+                    sl.SetCellValue(6, 2, "管制圖上限 (3α)");
+                    sl.SetCellValue(7, 2, "管制圖下限 (3α)");
+                    sl.SetCellValue(8, 2, "分子" + (char)10 + smeasure.NumeratorName);
+                    sl.SetCellValue(9, 2, "分母" + (char)10 + smeasure.DenominatorName);
+                    //取得數值資料
+                    for (int i = 0; i < 12; i++)
+                    {
+                        var srecord = smeasure.Records.Where(o => DateTime.TryParse(o.Key, out DateTime sda)
+                        && sda.Year == DateTime.Now.AddMonths(-12 - 1 + i).Year
+                        && sda.Month == DateTime.Now.AddMonths(-12 - 1 + i).Month).ToDictionary(o => o.Key, o => o.Value);
+                        if (srecord == null || srecord.Count <= 0)
+                            continue;
+
+                        sl.SetCellValue(1, 3 + i, srecord.Keys.FirstOrDefault());
+                        sl.SetCellValue(8, 3 + i, srecord.FirstOrDefault().Value[0]);
+                        sl.SetCellValue(9, 3 + i, srecord.FirstOrDefault().Value[1]);
+                        //sl.SetCellValue(1, 3 + i, sl.GetCellValueAsString(1, 3 + 12 - i));
+                        //sl.SetCellValue(8, 3 + i, sl.GetCellValueAsDouble(3, 3 + 12 - i));
+                        //sl.SetCellValue(9, 3 + i, sl.GetCellValueAsDouble(4, 3 + 12 - i));
+                    }
+                    if (spctype == SPCtype.C)
+                    {
+                        sl.SetCellValue(2, 4 + 12 + 2, "c");
+                        sl.SetCellValue(3, 4 + 12 + 2, "=SUM(C8:N8) / 12");
+                        sl.SetCellValue(2, 5 + 12 + 2, "n");
+                        sl.SetCellValue(3, 5 + 12 + 2, 12);
+                    }
+                    else
+                    {
+                        sl.SetCellValue(2, 4 + 12 + 2, "u or p");
+                        sl.SetCellValue(3, 4 + 12 + 2, "=SUM(C8:N8) / SUM(C9:N9)");
+                        sl.SetCellValue(2, 5 + 12 + 2, "n");
+                        sl.SetCellValue(3, 5 + 12 + 2, "=AVERAGE(C9:N9)");
+                    }
+
+                    for (int i = 0; i < 12; i++)
+                    {
+                        string sigma = string.Empty;
+                        string amplify = string.Empty;
+                        string average = "R3";
+                        string measure = string.Empty;
+                        if (spctype == SPCtype.P)
+                        {
+                            amplify = " * 1000";
+                            sigma = string.Format("SQRT(R3 * (1 - R3) / {0}9)", alphabet[2 + i]);
+                            measure = string.Format("=({0}8 / {0}9){1}", alphabet[2 + i], amplify);
+                        }
+                        else if (spctype == SPCtype.U)
+                        {
+                            amplify = string.Empty;
+                            sigma = string.Format("SQRT(R3 / {0}9)", alphabet[2 + i]);
+                            measure = string.Format("=({0}8 / {0}9){1}", alphabet[2 + i], amplify);
+                        }
+                        else if (spctype == SPCtype.C)
+                        {
+                            amplify = string.Empty;
+                            sigma = "SQRT(R3)";
+                            measure = string.Format("=({0}8)", alphabet[2 + i]);
+                        }
+                        else if (spctype == SPCtype.nP)
+                        {
+                            average = "S3 * R3";
+                            amplify = string.Empty;
+                            sigma = "SQRT(S3 * R3 * (1 - R3))";
+                            measure = string.Format("=({0}8)", alphabet[2 + i]);
+                        }
+                        else //暫時借用 U 圖
+                        {
+                            amplify = string.Empty;
+                            sigma = string.Format("SQRT(R3 / {0}9)", alphabet[2 + i]);
+                            measure = string.Format("=({0}8 / {0}9){1}", alphabet[2 + i], amplify);
+                        }
+                        if (sl.GetCellValueAsDouble(9, 3 + i) == 0)
+                            sl.SetCellValue(2, 3 + i, 0);
+                        else
+                            sl.SetCellValue(2, 3 + i, measure);
+                        sl.SetCellValue(3, 3 + i, string.Format("=({0}){1}", average, amplify));
+                        sl.SetCellValue(4, 3 + i, string.Format("=({0} + ({1} * 2)){2}", average, sigma, amplify));
+                        sl.SetCellValue(5, 3 + i, string.Format("=({0} - ({1} * 2)){2}", average, sigma, amplify));
+                        sl.SetCellValue(6, 3 + i, string.Format("=({0} + ({1} * 3)){2}", average, sigma, amplify));
+                        sl.SetCellValue(7, 3 + i, string.Format("=({0} - ({1} * 3)){2}", average, sigma, amplify));
+                    }
+
+                    sl.SetColumnWidth(2, 25);
+                    SLStyle style;
+                    style = sl.CreateStyle();
+                    style.Alignment.Horizontal = HorizontalAlignmentValues.Center;
+                    style.Alignment.Vertical = VerticalAlignmentValues.Center;
+                    style.Alignment.WrapText = true;
+                    style.Font.FontSize = 12;
+                    sl.SetColumnStyle(2, style);
+                    sl.SetRowStyle(1, style);
+
+                    double fChartHeight = 25;
+                    double fChartWidth = 13;
+                    SLChart chart;
+                    chart = sl.CreateChart("B1", "N7");
+                    chart.SetChartType(SLLineChartType.Line);
+                    chart.SetChartStyle(SLChartStyle.Style5);
+                    chart.SetChartPosition(11, 1, 11 + fChartHeight, 1 + fChartWidth);
+
+                    chart.PrimaryTextAxis.TickLabelPosition = DocumentFormat.OpenXml.Drawing.Charts.TickLabelPositionValues.Low;
+
+                    SLDataSeriesOptions dso;
+                    dso = chart.GetDataSeriesOptions(3);
+                    dso.Line.DashType = DocumentFormat.OpenXml.Drawing.PresetLineDashValues.Dot;
+                    chart.SetDataSeriesOptions(3, dso);
+                    chart.SetDataSeriesOptions(4, dso);
+                    dso.Line.DashType = DocumentFormat.OpenXml.Drawing.PresetLineDashValues.DashDot;
+                    chart.SetDataSeriesOptions(5, dso);
+                    chart.SetDataSeriesOptions(6, dso);
+
+                    dso = chart.GetDataSeriesOptions(1);
+                    dso.Marker.Symbol = DocumentFormat.OpenXml.Drawing.Charts.MarkerStyleValues.Circle;
+                    dso.Line.SetSolidLine(System.Drawing.Color.Chocolate, 0);
+                    chart.SetDataSeriesOptions(1, dso);
+                    sl.InsertChart(chart);
+                    sl.SaveAs(fpath + @"\(" + Combx3.SelectedValue.ToString() + ")SPCChart-指標數據總資料 (" + smeasure.MeasureName + ") " + DateTime.Now.AddMonths(-1).ToString("yyyy-MM") + ".xlsx");
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString());
+            }
+            /*
             string fname = @"\指標數據總資料" + DateTime.Now.AddMonths(-1).ToString("yyyy-MM") + ".xlsx";
             if (!System.IO.File.Exists(fpath+fname))
                 return;
+
             try
             {
                 List<string> alphabet = Enumerable.Range(0, 26).Select(i => Convert.ToChar('A' + i).ToString()).ToList();
@@ -1756,6 +1932,7 @@ namespace MeasuresData
             {
                 MessageBox.Show(ex.ToString());
             }
+            */
             MessageBox.Show("匯出圖表成功");
         }
 
@@ -1808,13 +1985,13 @@ namespace MeasuresData
     }
         private enum SPCtype
         {
-            U,
-            C,
-            P,
-            I,
-            nP,
-            Xbar_S,
-            Xbar_R
+            U = 1,
+            C = 2,
+            P = 3,
+            I = 4,
+            nP = 5,
+            Xbar_S = 6,
+            Xbar_R = 7
         }
         private enum IndicatorGroup
         {
@@ -1851,6 +2028,21 @@ namespace MeasuresData
             E_Date_10,
             E_Date_11,
             E_Date_12,
+        }
+
+        private void Combx1_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            if (gmeasure.Count <= 0)
+                return;
+
+            if (Combx1.SelectedIndex == 0)
+            {
+                Combx2.ItemsSource = gmeasure.Select(o => o.MeasureID + ":" + o.MeasureName).ToList();
+            }
+            else
+            {
+                Combx2.ItemsSource = gmeasure.Where(o => o.Group == Combx1.SelectedValue.ToString()).Select(o => o.MeasureID + ":" + o.MeasureName).ToList();
+            }
         }
     }
 }

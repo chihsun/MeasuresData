@@ -7,21 +7,24 @@
         mc:Ignorable="d"
         Title="童綜合醫院指標收整工具" Height="450" Width="711" Loaded="Window_Loaded" WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
     <Grid Background="{DynamicResource {x:Static SystemColors.GradientActiveCaptionBrushKey}}">
-        <Button Content="匯入清單" HorizontalAlignment="Left" Margin="84,66,0,0" VerticalAlignment="Top" Width="105" Click="BT_IMPORT_SOURCE"/>
-        <Button Content="匯出TCPI" HorizontalAlignment="Left" Margin="510,66,0,0" VerticalAlignment="Top" Width="105" Click="BT_TO_TCPI"/>
-        <Button Content="匯出評鑑持續" HorizontalAlignment="Left" Margin="510,103,0,0" VerticalAlignment="Top" Width="105" Click="BT_TO_HACMI"/>
-        <Button Content="匯出THIS" HorizontalAlignment="Left" Margin="510,141,0,0" VerticalAlignment="Top" Width="105" Click="BT_TO_THIS"/>
-        <Button Content="讀取指標" HorizontalAlignment="Left" Margin="84,141,0,0" VerticalAlignment="Top" Width="105" Click="BT_IMPORT_MEASUREDATA"/>
+        <Button Content="匯入清單" HorizontalAlignment="Left" Margin="46,26,0,0" VerticalAlignment="Top" Width="105" Click="BT_IMPORT_SOURCE"/>
+        <Button Content="匯出TCPI" HorizontalAlignment="Left" Margin="206,63,0,0" VerticalAlignment="Top" Width="105" Click="BT_TO_TCPI"/>
+        <Button Content="匯出評鑑持續" HorizontalAlignment="Left" Margin="206,101,0,0" VerticalAlignment="Top" Width="105" Click="BT_TO_HACMI"/>
+        <Button Content="匯出THIS" HorizontalAlignment="Left" Margin="206,139,0,0" VerticalAlignment="Top" Width="105" Click="BT_TO_THIS"/>
+        <Button Content="讀取指標" HorizontalAlignment="Left" Margin="46,101,0,0" VerticalAlignment="Top" Width="105" Click="BT_IMPORT_MEASUREDATA" IsEnabled="False"/>
         <TextBox x:Name="TxtBox1" HorizontalAlignment="Left" Height="163" Margin="84,221,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="531" VerticalScrollBarVisibility="Auto"/>
-        <Button Content="匯入收回資料" HorizontalAlignment="Left" Margin="297,66,0,0" VerticalAlignment="Top" Width="103" Click="BT_IMPORT_RESULT"/>
-        <Button Content="轉給單位" HorizontalAlignment="Left" Margin="84,103,0,0" VerticalAlignment="Top" Width="105" Click="BT_TO_EXPORT_CLINIC"/>
-        <Label Content="一" HorizontalAlignment="Left" Margin="33,60,0,0" VerticalAlignment="Top"/>
-        <Label Content="二" HorizontalAlignment="Left" Margin="33,97,0,0" VerticalAlignment="Top"/>
-        <Label Content="三" HorizontalAlignment="Left" Margin="257,60,0,0" VerticalAlignment="Top"/>
-        <Button Content="匯入過往要素資料" HorizontalAlignment="Left" Margin="297,103,0,0" VerticalAlignment="Top" Width="103" Click="BT_IMPORT_OLDDATA" RenderTransformOrigin="0.417,4.727"/>
-        <Button Content="匯出要素資料" HorizontalAlignment="Left" Margin="297,141,0,0" VerticalAlignment="Top" Width="103" Click="BT_EXPORT_ELEMENT" RenderTransformOrigin="0.417,4.727"/>
-        <Button Content="匯出指標資料" HorizontalAlignment="Left" Margin="297,179,0,0" VerticalAlignment="Top" Width="103" Click="BT_EXPORT_MEASURE" RenderTransformOrigin="0.417,4.727"/>
-        <Button Content="匯出圖表曲線" HorizontalAlignment="Left" Margin="510,179,0,0" VerticalAlignment="Top" Width="103" Click="BT_EXPORT_CHART" RenderTransformOrigin="0.417,4.727"/>
-        <Button Content="匯出自訂項目" HorizontalAlignment="Left" Margin="510,27,0,0" VerticalAlignment="Top" Width="103" Click="BT_EXPORT_CUSTOM" RenderTransformOrigin="0.417,4.727"/>
+        <Button Content="匯入收回資料" HorizontalAlignment="Left" Margin="206,26,0,0" VerticalAlignment="Top" Width="105" Click="BT_IMPORT_RESULT"/>
+        <Button Content="轉給單位" HorizontalAlignment="Left" Margin="46,63,0,0" VerticalAlignment="Top" Width="105" Click="BT_TO_EXPORT_CLINIC"/>
+        <Label Content="一" HorizontalAlignment="Left" Margin="17,20,0,0" VerticalAlignment="Top"/>
+        <Label Content="二" HorizontalAlignment="Left" Margin="17,57,0,0" VerticalAlignment="Top"/>
+        <Label Content="三" HorizontalAlignment="Left" Margin="166,20,0,0" VerticalAlignment="Top"/>
+        <Button Content="匯入過往要素資料" HorizontalAlignment="Left" Margin="326,26,0,0" VerticalAlignment="Top" Width="105" Click="BT_IMPORT_OLDDATA" RenderTransformOrigin="0.417,4.727"/>
+        <Button Content="匯出要素資料" HorizontalAlignment="Left" Margin="326,63,0,0" VerticalAlignment="Top" Width="105" Click="BT_EXPORT_ELEMENT" RenderTransformOrigin="0.417,4.727"/>
+        <Button Content="匯出指標資料" HorizontalAlignment="Left" Margin="326,102,0,0" VerticalAlignment="Top" Width="105" Click="BT_EXPORT_MEASURE" RenderTransformOrigin="0.417,4.727"/>
+        <Button Content="匯出管制圖" HorizontalAlignment="Left" Margin="442,175,0,0" VerticalAlignment="Top" Width="105" Click="BT_EXPORT_CHART" RenderTransformOrigin="0.417,4.727"/>
+        <Button Content="匯出自訂項目" HorizontalAlignment="Left" Margin="326,175,0,0" VerticalAlignment="Top" Width="105" Click="BT_EXPORT_CUSTOM" RenderTransformOrigin="0.417,4.727" IsEnabled="False"/>
+        <ComboBox x:Name="Combx1" HorizontalAlignment="Left" Margin="442,61,0,0" VerticalAlignment="Top" Width="105" SelectionChanged="Combx1_SelectionChanged"/>
+        <ComboBox x:Name="Combx2" HorizontalAlignment="Left" Margin="442,99,0,0" VerticalAlignment="Top" Width="238"/>
+        <ComboBox x:Name="Combx3" HorizontalAlignment="Left" Margin="442,137,0,0" VerticalAlignment="Top" Width="105"/>
     </Grid>
 </Window>

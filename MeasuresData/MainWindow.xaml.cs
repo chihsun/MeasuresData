@@ -41,6 +41,7 @@ namespace MeasuresData
             public string Frequency { get; set; }
             public bool Positive { get; set; }
             public string User { get; set; }
+
             public Dictionary<string, List<double>> Records = new Dictionary<string, List<double>>();
         }
 
@@ -58,11 +59,11 @@ namespace MeasuresData
 
             public DateTime ElementDate { get; set; }
             public string ElementRecord { get; set; }
-            public Dictionary<string, string> PreDdatas { get; set; }
+            public Dictionary<string, double> AllRecords { get; set; }
             public MElement()
             {
-                PreDdatas = new Dictionary<string, string>();
-                ElementDate = new DateTime();
+                AllRecords = new Dictionary<string, double>();
+                ElementDate = DateTime.MinValue;
             }
         }
 
@@ -90,6 +91,7 @@ namespace MeasuresData
                 return vHandle == HFILE_ERROR ? true : false;
             }
         }
+        #region Stastic
         private Dictionary<string, double> StSummary(List<double> ListData)
         {
             Dictionary<string, double> stSummary = new Dictionary<string, double>();
@@ -235,9 +237,207 @@ namespace MeasuresData
         }
         #endregion
 
+        #endregion
+
+        #region METHOD
+        public void GetMeasureRecords()
+        {
+            if (gmeasure.Count <= 0)
+                return;
+            if (gbackups.Count <= 0)
+                return;
+            var sortbacks = gbackups.OrderBy(o => o.Key).ToDictionary(o => o.Key, p => p.Value.OrderByDescending(o => o.ElementRecord).ToList());
+
+            foreach (var x in gmeasure)
+            {
+                int Destatus = 0;
+                int Nustatus = 0;
+
+                List<List<MElement>> DenosPlus = new List<List<MElement>>();
+                List<List<MElement>> NumePlus = new List<List<MElement>>();
+
+                var Numes = sortbacks.FirstOrDefault(o => o.Key == x.Numerator).Value;
+                var Denos = sortbacks.FirstOrDefault(o => o.Key == x.Denominator).Value;
+
+                if (x.Denominator.Contains("+"))
+                {
+                    Destatus = 1;
+                    var elements = x.Denominator.Split('+').ToList();
+                    if (elements.Count > 0)
+                    {
+                        foreach (var ele in elements)
+                        {
+                            var em = sortbacks.FirstOrDefault(o => o.Key == ele.Trim()).Value;
+                            if (em != null)
+                                DenosPlus.Add(em);
+                        }
+                    }
+                }
+                else if (x.Denominator.Contains(".") && x.Denominator.Contains("-"))
+                {
+                    Destatus = 2;
+                    var elements = x.Denominator.Split('-').ToList();
+                    if (elements.Count > 0)
+                    {
+                        foreach (var ele in elements)
+                        {
+                            var em = sortbacks.FirstOrDefault(o => o.Key == ele.Trim()).Value;
+                            if (em != null)
+                                DenosPlus.Add(em);
+                        }
+                    }
+                }
+                if (x.Numerator.Contains("+"))
+                {
+                    Nustatus = 1;
+                    var elements = x.Numerator.Split('+').ToList();
+                    if (elements.Count > 0)
+                    {
+                        foreach (var ele in elements)
+                        {
+                            var em = sortbacks.FirstOrDefault(o => o.Key == ele.Trim()).Value;
+                            if (em != null)
+                                NumePlus.Add(em);
+                        }
+                    }
+                }
+                else if (x.Numerator.Contains(".") && x.Numerator.Contains("-"))
+                {
+                    Nustatus = 2;
+                    var elements = x.Numerator.Split('-').ToList();
+                    if (elements.Count > 0)
+                    {
+                        foreach (var ele in elements)
+                        {
+                            var em = sortbacks.FirstOrDefault(o => o.Key == ele.Trim()).Value;
+                            if (em != null)
+                                NumePlus.Add(em);
+                        }
+                    }
+                }
+                //將 12 + 6 個月的資料載入gmeasure
+                for (int i = 0; i < 12 + 6; i++)
+                {
+                    double rnum = -1;
+                    double rdec = -1;
+                    if (x.Numerator == "1")
+                        rnum = 1;
+                    else if (Numes != null)
+                    {
+                        var nume = Numes.FirstOrDefault(o => o.ElementDate.Year == DateTime.Now.AddMonths(-i - 1).Year
+                        && o.ElementDate.Month == DateTime.Now.AddMonths(-i - 1).Month);
+                        if (nume != null)
+                        {
+                            if (Double.TryParse(nume.ElementRecord, out double numok))
+                                rnum = numok;
+                        }
+                    }
+                    else if (NumePlus.Count > 0)
+                    {
+                        try
+                        {
+                            Double deno = 0;
+                            foreach (var ele in NumePlus)
+                            {
+                                var de = ele.FirstOrDefault(o => o.ElementDate.Year == DateTime.Now.AddMonths(-i - 1).Year
+                            && o.ElementDate.Month == DateTime.Now.AddMonths(-i - 1).Month);
+                                if (de == null)
+                                {
+                                    break;
+                                }
+                                if (!Double.TryParse(de.ElementRecord, out double num))
+                                    break;
+                                if (Nustatus == 1)
+                                {
+                                    deno += num;
+                                }
+                                else if (Nustatus == 2)
+                                {
+                                    if (deno == 0)
+                                        deno = num;
+                                    else
+                                        deno -= num;
+                                }
+                            }
+                            if (deno > 0)
+                                rnum = deno;
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show(ex.ToString());
+                        }
+                    }
+                    if (x.Denominator == "1")
+                        rdec = 1;
+                    else if (Denos != null)
+                    {
+                        var deno = Denos.FirstOrDefault(o => o.ElementDate.Year == DateTime.Now.AddMonths(-i - 1).Year
+                        && o.ElementDate.Month == DateTime.Now.AddMonths(-i - 1).Month);
+                        if (deno != null)
+                        {
+                            if (Double.TryParse(deno.ElementRecord, out double numok))
+                                rdec = numok;
+                        }
+                    }
+                    else if (DenosPlus.Count > 0)
+                    {
+                        try
+                        {
+                            Double deno = 0;
+                            foreach (var ele in DenosPlus)
+                            {
+                                var de = ele.FirstOrDefault(o => o.ElementDate.Year == DateTime.Now.AddMonths(-i - 1).Year
+                            && o.ElementDate.Month == DateTime.Now.AddMonths(-i - 1).Month);
+                                if (de == null)
+                                {
+                                    break;
+                                }
+                                if (!Double.TryParse(de.ElementRecord, out double num))
+                                    break;
+                                if (Destatus == 1)
+                                {
+                                    deno += num;
+                                }
+                                else if (Destatus == 2)
+                                {
+                                    if (deno == 0)
+                                        deno = num;
+                                    else
+                                        deno -= num;
+                                }
+                            }
+                            if (deno > 0)
+                                rdec = deno;
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show(ex.ToString());
+                        }
+                    }
+                    //將分子、分母數據加回 gmeasure
+                    if (!x.Records.ContainsKey(DateTime.Now.AddMonths(-i - 1).ToString("yyyy/MM")))
+                    {
+                        x.Records.Add(DateTime.Now.AddMonths(-i - 1).ToString("yyyy/MM"),
+                        new List<double>() { rnum, rdec });
+                    }
+                    else
+                    {
+                        x.Records[DateTime.Now.AddMonths(-i - 1).ToString("yyyy/MM")] = new List<double>() { rnum, rdec };
+                    }
+                }
+            }
+        }
+        #endregion
+
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-
+            List<string> exmonth = new List<string>();
+            for (int i = 0; i < 12 + 6; i++)
+                exmonth.Add(DateTime.Now.AddMonths(-i - 1).ToString("yyyy/MM"));
+            Combx4_Month.ItemsSource = Combx4_Month_ST.ItemsSource = Combx4_Month_Ed.ItemsSource = exmonth;
+            Combx4_Month.SelectedIndex = 0;
+            Combx4_Month_Ed.SelectedIndex = 1;
+            Combx4_Month_ST.SelectedIndex = 12;
         }
         //原始資料庫之要素資料
         public List<MElement> gdata = new List<MElement>();
@@ -368,6 +568,7 @@ namespace MeasuresData
                     Combx3.SelectedIndex = 0;
                 }
                 LoadDataBASE();
+                GetMeasureRecords();
             }
             catch (Exception ex)
             {
@@ -461,7 +662,7 @@ namespace MeasuresData
                 LoadFile(dlg.FileName);
             }
         }
-        public void ExportData(string type)
+        public void ExportData(string type, string month)
         {
             if (!Directory.Exists(System.Environment.CurrentDirectory + @"\資料上傳"))
             {
@@ -469,8 +670,12 @@ namespace MeasuresData
             }
             if (gdata.Count <= 0)
             {
-                MessageBox.Show("尚未匯入清單");
+                MessageBox.Show("尚未匯入定義清單");
                 return;
+            }
+            if (gcollect.Count <= 0)
+            {
+                MessageBox.Show("尚未匯入收回資料");
             }
             if (type == "TCPI")
             {
@@ -676,7 +881,7 @@ namespace MeasuresData
 
         private void BT_TO_TCPI(object sender, RoutedEventArgs e)
         {
-            ExportData("TCPI");
+            ExportData("TCPI", Combx4_Month.SelectedValue.ToString());
 
             /*
             if (FileStatusHelper.IsFileOccupied(@"檔案路徑"))
@@ -692,12 +897,12 @@ namespace MeasuresData
 
         private void BT_TO_HACMI(object sender, RoutedEventArgs e)
         {
-            ExportData("評鑑持續");
+            ExportData("評鑑持續", Combx4_Month.SelectedValue.ToString());
         }
 
         private void BT_TO_THIS(object sender, RoutedEventArgs e)
         {
-            ExportData("THIS");
+            ExportData("THIS", Combx4_Month.SelectedValue.ToString());
         }
 
         private void BT_IMPORT_MEASUREDATA(object sender, RoutedEventArgs e)
@@ -1086,29 +1291,43 @@ namespace MeasuresData
 
                             foreach (var x in gcollect)
                             {
+                                SLWorksheetStatistics wsstats = sl.GetWorksheetStatistics();
+                                int slrows = wsstats.EndRowIndex;
                                 bool oldele = false;
-                                for (int j = 0; j < 500; j++)
+                                for (int i = 0; i < slrows + 10; i++)
                                 {
-                                    if (string.IsNullOrWhiteSpace(sl.GetCellValueAsString(j + 2, 1)))
-                                        break;
-                                    if (sl.GetCellValueAsString(j + 2, 1) == x.ElementID)
+                                    //if (string.IsNullOrWhiteSpace(sl.GetCellValueAsString(i + 2, 1)))
+                                    //    break;
+                                    if (sl.GetCellValueAsString(i + 2, 1) == x.ElementID)
                                     {
-                                        sl.SetCellValue(j + 2, 2, Convert.ToDouble(x.ElementRecord));
+                                        sl.SetCellValue(i + 2, 2, Convert.ToDouble(x.ElementRecord));
                                         oldele = true;
                                         break;
                                     }
                                 }
                                 if (!oldele)
                                 {
-                                    SLWorksheetStatistics wsstats = sl.GetWorksheetStatistics();
-                                    int slrows = wsstats.EndRowIndex;
-
                                     sl.SetCellValue(slrows + 1, 1, x.ElementID);
                                     sl.SetCellValue(slrows + 1, 2, Convert.ToDouble(x.ElementRecord));
                                 }
                             }
 
                             sl.SaveAs(fpath + fname2);
+                        }
+                    }
+                    // 將收集之資料匯回資料庫中
+                    foreach (var x in gcollect)
+                    {
+                        if (gbackups.ContainsKey(x.ElementID))
+                        {
+                            var dataex = gbackups[x.ElementID].FirstOrDefault(o => o.ElementID == x.ElementID && o.ElementDate == x.ElementDate);
+                            if (dataex != null)
+                                gbackups[x.ElementID].Remove(dataex);
+                            gbackups[x.ElementID].Add(x);
+                        }
+                        else
+                        {
+
                         }
                     }
                 }
@@ -1347,7 +1566,7 @@ namespace MeasuresData
         {
             if (gbackups.Count <= 0)
                 return;
-
+            /*
             if (gcollect.Count > 0)
             {
                 foreach (var x in gcollect)
@@ -1361,6 +1580,7 @@ namespace MeasuresData
                     }
                 }
             }
+            */
 
             var sortbacks = gbackups.OrderBy(o => o.Key).ToDictionary(o => o.Key, p => p.Value);
 
@@ -1620,10 +1840,18 @@ namespace MeasuresData
                                     MessageBox.Show(ex.ToString());
                                 }
                             }
+                            /*
                             //將分子、分母數據加回 gmeasure
                             if (!x.Records.ContainsKey(DateTime.Now.AddMonths(-i - 1).ToString("yyyy/MM")))
+                            {
                                 x.Records.Add(DateTime.Now.AddMonths(-i - 1).ToString("yyyy/MM"),
                                 new List<double>() { sl.GetCellValueAsDouble(index + 1, i + 4), sl.GetCellValueAsDouble(index + 2, i + 4) });
+                            }
+                            else
+                            {
+                                x.Records[DateTime.Now.AddMonths(-i - 1).ToString("yyyy/MM")] = new List<double>() { sl.GetCellValueAsDouble(index + 1, i + 4), sl.GetCellValueAsDouble(index + 2, i + 4) };
+                            }
+                            */
 
                             if (!string.IsNullOrEmpty(sl.GetCellValueAsString(index + 2, i + 4)))
                             {
@@ -1668,6 +1896,16 @@ namespace MeasuresData
             var smeasure = gmeasure.FirstOrDefault(o => o.MeasureID == selmeasure);
             if (smeasure == null || smeasure.Records.Count <= 0)
                 return;
+            if (!DateTime.TryParse(Combx4_Month_Ed.SelectedValue.ToString(), out DateTime ed)
+                || !DateTime.TryParse(Combx4_Month_ST.SelectedValue.ToString(), out DateTime st)
+                || ed <= st.AddMonths(3))
+                return;
+            int cMonths = ed.Year * 12 + ed.Month - (st.Year * 12 + st.Month) + 1;
+            if (cMonths < 3)
+            {
+                MessageBox.Show("選取月份太短");
+                return;
+            }
 
             string fpath = Environment.CurrentDirectory + @"\要素備份";
 
@@ -1680,7 +1918,7 @@ namespace MeasuresData
                 List<string> alphabet = Enumerable.Range(0, 26).Select(i => Convert.ToChar('A' + i).ToString()).ToList();
                 using (SLDocument sl = new SLDocument())
                 {
-                    sl.SetCellValue(2, 2, Combx2.SelectedValue.ToString());
+                    sl.SetCellValue(2, 2, Combx2.SelectedValue.ToString() + (spctype == SPCtype.P ? "(‰)" : ""));
                     sl.SetCellValue(3, 2, "平均值");
                     sl.SetCellValue(4, 2, "管制圖上限 (2α)");
                     sl.SetCellValue(5, 2, "管制圖下限 (2α)");
@@ -1689,11 +1927,11 @@ namespace MeasuresData
                     sl.SetCellValue(8, 2, "分子" + (char)10 + smeasure.NumeratorName);
                     sl.SetCellValue(9, 2, "分母" + (char)10 + smeasure.DenominatorName);
                     //取得數值資料
-                    for (int i = 0; i < 12; i++)
+                    for (int i = 0; i < cMonths; i++)
                     {
                         var srecord = smeasure.Records.Where(o => DateTime.TryParse(o.Key, out DateTime sda)
-                        && sda.Year == DateTime.Now.AddMonths(-12 - 1 + i).Year
-                        && sda.Month == DateTime.Now.AddMonths(-12 - 1 + i).Month).ToDictionary(o => o.Key, o => o.Value);
+                        && sda.Year == DateTime.Now.AddMonths(-cMonths - 1 + i).Year
+                        && sda.Month == DateTime.Now.AddMonths(-cMonths - 1 + i).Month).ToDictionary(o => o.Key, o => o.Value);
                         if (srecord == null || srecord.Count <= 0)
                             continue;
 
@@ -1706,54 +1944,54 @@ namespace MeasuresData
                     }
                     if (spctype == SPCtype.C)
                     {
-                        sl.SetCellValue(2, 4 + 12 + 2, "c");
-                        sl.SetCellValue(3, 4 + 12 + 2, "=SUM(C8:N8) / 12");
-                        sl.SetCellValue(2, 5 + 12 + 2, "n");
-                        sl.SetCellValue(3, 5 + 12 + 2, 12);
+                        sl.SetCellValue(2, 1, "c");
+                        sl.SetCellValue(3, 1, string.Format("=SUM(C8:{0}8) / {1}", alphabet[cMonths + 1], cMonths));
+                        sl.SetCellValue(4, 1, "n");
+                        sl.SetCellValue(5, 1, cMonths);
                     }
                     else
                     {
-                        sl.SetCellValue(2, 4 + 12 + 2, "u or p");
-                        sl.SetCellValue(3, 4 + 12 + 2, "=SUM(C8:N8) / SUM(C9:N9)");
-                        sl.SetCellValue(2, 5 + 12 + 2, "n");
-                        sl.SetCellValue(3, 5 + 12 + 2, "=AVERAGE(C9:N9)");
+                        sl.SetCellValue(2, 1, "u or p");
+                        sl.SetCellValue(3, 1, string.Format("=SUM(C8:{0}8) / SUM(C9:{0}9)", alphabet[cMonths + 1]));
+                        sl.SetCellValue(4, 1, "n");
+                        sl.SetCellValue(5, 1, string.Format("=AVERAGE(C9:{0}9)", alphabet[cMonths + 1]));
                     }
 
-                    for (int i = 0; i < 12; i++)
+                    for (int i = 0; i < cMonths; i++)
                     {
                         string sigma = string.Empty;
                         string amplify = string.Empty;
-                        string average = "R3";
+                        string average = "A3";
                         string measure = string.Empty;
                         if (spctype == SPCtype.P)
                         {
                             amplify = " * 1000";
-                            sigma = string.Format("SQRT(R3 * (1 - R3) / {0}9)", alphabet[2 + i]);
+                            sigma = string.Format("SQRT(A3 * (1 - A3) / {0}9)", alphabet[2 + i]);
                             measure = string.Format("=({0}8 / {0}9){1}", alphabet[2 + i], amplify);
                         }
                         else if (spctype == SPCtype.U)
                         {
                             amplify = string.Empty;
-                            sigma = string.Format("SQRT(R3 / {0}9)", alphabet[2 + i]);
+                            sigma = string.Format("SQRT(A3 / {0}9)", alphabet[2 + i]);
                             measure = string.Format("=({0}8 / {0}9){1}", alphabet[2 + i], amplify);
                         }
                         else if (spctype == SPCtype.C)
                         {
                             amplify = string.Empty;
-                            sigma = "SQRT(R3)";
+                            sigma = "SQRT(A3)";
                             measure = string.Format("=({0}8)", alphabet[2 + i]);
                         }
                         else if (spctype == SPCtype.nP)
                         {
-                            average = "S3 * R3";
+                            average = "A5 * A3";
                             amplify = string.Empty;
-                            sigma = "SQRT(S3 * R3 * (1 - R3))";
+                            sigma = "SQRT(A5 * A3 * (1 - A3))";
                             measure = string.Format("=({0}8)", alphabet[2 + i]);
                         }
                         else //暫時借用 U 圖
                         {
                             amplify = string.Empty;
-                            sigma = string.Format("SQRT(R3 / {0}9)", alphabet[2 + i]);
+                            sigma = string.Format("SQRT(A3 / {0}9)", alphabet[2 + i]);
                             measure = string.Format("=({0}8 / {0}9){1}", alphabet[2 + i], amplify);
                         }
                         if (sl.GetCellValueAsDouble(9, 3 + i) == 0)
@@ -1778,9 +2016,9 @@ namespace MeasuresData
                     sl.SetRowStyle(1, style);
 
                     double fChartHeight = 25;
-                    double fChartWidth = 13;
+                    double fChartWidth = Math.Max(13, cMonths + 1);
                     SLChart chart;
-                    chart = sl.CreateChart("B1", "N7");
+                    chart = sl.CreateChart("B1", alphabet[cMonths + 1] + "7");
                     chart.SetChartType(SLLineChartType.Line);
                     chart.SetChartStyle(SLChartStyle.Style5);
                     chart.SetChartPosition(11, 1, 11 + fChartHeight, 1 + fChartWidth);

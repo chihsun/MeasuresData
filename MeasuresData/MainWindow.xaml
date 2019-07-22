@@ -8,9 +8,6 @@
         Title="童綜合醫院指標收整工具" Height="450" Width="711" Loaded="Window_Loaded" WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
     <Grid Background="{DynamicResource {x:Static SystemColors.GradientActiveCaptionBrushKey}}">
         <Button Content="匯入清單" HorizontalAlignment="Left" Margin="59,26,0,0" VerticalAlignment="Top" Width="105" Click="BT_IMPORT_SOURCE"/>
-        <Button Content="匯出TCPI" HorizontalAlignment="Left" Margin="187,26,0,0" VerticalAlignment="Top" Width="105" Click="BT_TO_TCPI"/>
-        <Button Content="匯出評鑑持續" HorizontalAlignment="Left" Margin="187,63,0,0" VerticalAlignment="Top" Width="105" Click="BT_TO_HACMI"/>
-        <Button Content="匯出THIS" HorizontalAlignment="Left" Margin="187,102,0,0" VerticalAlignment="Top" Width="105" Click="BT_TO_THIS"/>
         <Button Content="讀取指標" HorizontalAlignment="Left" Margin="59,139,0,0" VerticalAlignment="Top" Width="105" Click="BT_IMPORT_MEASUREDATA" IsEnabled="False"/>
         <TextBox x:Name="TxtBox1" HorizontalAlignment="Left" Height="163" Margin="84,221,0,0" TextWrapping="Wrap" VerticalAlignment="Top" Width="531" VerticalScrollBarVisibility="Auto"/>
         <Button Content="匯入收回資料" HorizontalAlignment="Left" Margin="59,102,0,0" VerticalAlignment="Top" Width="105" Click="BT_IMPORT_RESULT"/>
@@ -26,9 +23,14 @@
         <ComboBox x:Name="Combx1" HorizontalAlignment="Left" Margin="438,63,0,0" VerticalAlignment="Top" Width="105" SelectionChanged="Combx1_SelectionChanged" HorizontalContentAlignment="Center"/>
         <ComboBox x:Name="Combx2" HorizontalAlignment="Left" Margin="438,102,0,0" VerticalAlignment="Top" Width="238"/>
         <ComboBox x:Name="Combx3" HorizontalAlignment="Left" Margin="438,137,0,0" VerticalAlignment="Top" Width="105" HorizontalContentAlignment="Center"/>
-        <ComboBox x:Name="Combx4_Month" HorizontalAlignment="Left" Margin="187,173,0,0" VerticalAlignment="Top" Width="105" SelectionChanged="Combx1_SelectionChanged" HorizontalContentAlignment="Center"/>
-        <Label x:Name="LB_Month" Content="匯出月份" HorizontalAlignment="Left" Margin="187,136,0,0" VerticalAlignment="Top" RenderTransformOrigin="1.222,0.357" Width="105" HorizontalContentAlignment="Center"/>
-        <ComboBox x:Name="Combx4_Month_ST" HorizontalAlignment="Left" Margin="571,27,0,0" VerticalAlignment="Top" Width="105" SelectionChanged="Combx1_SelectionChanged" HorizontalContentAlignment="Center" RenderTransformOrigin="4.162,0.667"/>
+        <ComboBox x:Name="Combx4_Month" HorizontalAlignment="Left" Margin="189,63,0,0" VerticalAlignment="Top" Width="105" SelectionChanged="Combx1_SelectionChanged" HorizontalContentAlignment="Center" IsEnabled="False"/>
+        <Label x:Name="LB_Month" Content="匯出月份" HorizontalAlignment="Left" Margin="189,23,0,0" VerticalAlignment="Top" RenderTransformOrigin="1.222,0.357" Width="105" HorizontalContentAlignment="Center" IsEnabled="False"/>
+        <ComboBox x:Name="Combx4_Month_ST" HorizontalAlignment="Left" Margin="571,26,0,0" VerticalAlignment="Top" Width="105" SelectionChanged="Combx1_SelectionChanged" HorizontalContentAlignment="Center" RenderTransformOrigin="4.162,0.667"/>
         <ComboBox x:Name="Combx4_Month_Ed" HorizontalAlignment="Left" Margin="571,63,0,0" VerticalAlignment="Top" Width="105" SelectionChanged="Combx1_SelectionChanged" HorizontalContentAlignment="Center" RenderTransformOrigin="4.162,0.667"/>
+        <ComboBox x:Name="Combx5" HorizontalAlignment="Left" Margin="189,102,0,0" VerticalAlignment="Top" Width="105" SelectionChanged="Combx1_SelectionChanged" HorizontalContentAlignment="Center"/>
+        <Button Content="匯出提報檔" HorizontalAlignment="Left" Margin="189,139,0,0" VerticalAlignment="Top" Width="105" Click="EXPORT_UPLOAD" RenderTransformOrigin="0.417,4.727"/>
+        <Label x:Name="LB_Month_Copy" Content="匯出圖表" HorizontalAlignment="Left" Margin="438,23,0,0" VerticalAlignment="Top" RenderTransformOrigin="1.222,0.357" Width="105" HorizontalContentAlignment="Center" IsEnabled="False"/>
+        <Button Content="To XLSX" HorizontalAlignment="Left" Margin="189,175,0,0" VerticalAlignment="Top" Width="105" Click="BT_CONVERT_2_XLSX" RenderTransformOrigin="0.417,4.727"/>
+        <Button Content="To XLS" HorizontalAlignment="Left" Margin="59,175,0,0" VerticalAlignment="Top" Width="105" Click="BT_CONVERT_2_XLS" RenderTransformOrigin="0.417,4.727"/>
     </Grid>
 </Window>

@@ -26,7 +26,22 @@ namespace MeasuresData
             CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
             CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
         }
-        #region
+        private void Window_Loaded(object sender, RoutedEventArgs e)
+        {
+            List<string> exmonth = new List<string>();
+            for (int i = 0; i < 12 + 6; i++)
+                exmonth.Add(DateTime.Now.AddMonths(-i - 1).ToString("yyyy/MM"));
+            Combx4_Month.ItemsSource = Combx4_Month_ST.ItemsSource = Combx4_Month_Ed.ItemsSource = exmonth;
+            Combx4_Month.SelectedIndex = 0;
+            Combx4_Month_Ed.SelectedIndex = 1;
+            Combx4_Month_ST.SelectedIndex = 12;
+            /*
+            List<string> assoicate = new List<string>() { "TCPI", "THIS", "評鑑持續", "P4P" };
+            Combx5.ItemsSource = assoicate;
+            Combx5.SelectedIndex = 0;
+            */
+        }
+        #region CLASS
 
         public class MMeasure
         {
@@ -43,6 +58,23 @@ namespace MeasuresData
             public string User { get; set; }
 
             public Dictionary<string, List<double>> Records = new Dictionary<string, List<double>>();
+
+            public static MMeasure operator +(MMeasure a, MMeasure b)
+            {
+                MMeasure temp = new MMeasure();
+                if (a.Records.Count <= 0 || b.Records.Count <= 0)
+                    return temp;
+                List<double> rds = new List<double>();
+                foreach (var x in a.Records)
+                {
+                    var rd2 = b.Records.FirstOrDefault(o => o.Key == x.Key).Value;
+                    if (rd2.Count == 2 && x.Value.Count == 2)
+                    {
+                        temp.Records[x.Key] = new List<double>() { x.Value[0] + rd2[0], x.Value[1] + rd2[1] };
+                    }
+                }
+                return temp;
+            }
         }
 
         public class MElement
@@ -239,16 +271,298 @@ namespace MeasuresData
 
         #endregion
 
+        #region PARAMETER
+        private enum SPCtype
+        {
+            U = 1,
+            C = 2,
+            P = 3,
+            I = 4,
+            nP = 5,
+            Xbar_S = 6,
+            Xbar_R = 7
+        }
+        private enum IndicatorGroup
+        {
+            TCPI,
+            THIS,
+            HACMI,
+            ALL
+        }
+        private enum CustomType
+        {
+            E_Group,
+            E_Depart,
+            E_ELEID,
+            E_ELEName,
+            E_Record,
+            E_Frequency,
+            E_User,
+            E_MeasureID,
+            E_MeasureName,
+            E_Numerator,
+            E_NumeratorName,
+            E_Denominator,
+            E_DenominatorName,
+            E_Threshold,
+            E_Date_1,
+            E_Date_2,
+            E_Date_3,
+            E_Date_4,
+            E_Date_5,
+            E_Date_6,
+            E_Date_7,
+            E_Date_8,
+            E_Date_9,
+            E_Date_10,
+            E_Date_11,
+            E_Date_12,
+        }
+        //原始資料庫之要素資料定義
+        public List<MElement> GElements = new List<MElement>();
+        //原始資料庫之指標資料定義
+        public List<MMeasure> GMeasures = new List<MMeasure>();
+        //收回單位填寫之要素數值
+        public List<MElement> gcollect = new List<MElement>();
+        //資料庫中過往要素數值
+        public Dictionary<string, List<MElement>> GRecords = new Dictionary<string, List<MElement>>();
+        //原始資料庫之重覆要素
+        public Dictionary<string, List<string>> gduplicate = new Dictionary<string, List<string>>();
+        public List<string> SameEle = new List<string>();
+
+        //單位(群組合併)定義
+        public Dictionary<string, List<string>> GMulgroups = new Dictionary<string, List<string>>();
+        #endregion
+
         #region METHOD
+        public void LoadFile(string fname)
+        {
+            if (!System.IO.File.Exists(fname))
+                return;
+            GElements.Clear();
+            GMeasures.Clear();
+            gduplicate.Clear();
+            SameEle.Clear();
+            GRecords.Clear();
+            try
+            {
+                SLDocument sl = new SLDocument(fname, "工作表1");
+
+                for (int i = 0; i < 500; i++)
+                {
+                    if (string.IsNullOrEmpty(sl.GetCellValueAsString(i + 2, 1)))
+                        break;
+                    if (string.IsNullOrEmpty(sl.GetCellValueAsString(i + 2, 2)))
+                        continue;
+                    MElement data = new MElement
+                    {
+                        Group = sl.GetCellValueAsString(i + 2, 1).Trim(),
+                        Depart = sl.GetCellValueAsString(i + 2, 2).Trim(),
+                        ElementID = sl.GetCellValueAsString(i + 2, 3).Trim(),
+                        ElementName = sl.GetCellValueAsString(i + 2, 5).Trim(),
+                        User = sl.GetCellValueAsString(i + 2, 7).Trim()
+                    };
+                    for (int j = 12; j < 15; j++)
+                    {
+                        string content = sl.GetCellValueAsString(i + 2, j).Trim();
+                        if (string.IsNullOrEmpty(content))
+                            break;
+
+                        data.Complex = content.Contains("+");
+
+                        if (SameEle.Contains(content) || (gduplicate.ContainsKey(content) && gduplicate[content].Contains(data.ElementID)))
+                            continue;
+
+                        SameEle.Add(content);
+
+                        if (gduplicate.ContainsKey(data.ElementID))
+                        {
+                            if (!gduplicate[data.ElementID].Contains(content))
+                            {
+                                gduplicate[data.ElementID].Add(content);
+                            }
+                        }
+                        else
+                        {
+                            gduplicate.Add(data.ElementID, new List<string>() { content });
+                        }
+                    }
+
+                    GElements.Add(data);
+                }
+                sl.CloseWithoutSaving();
+
+                if (GElements.Count > 0)
+                {
+                    //MessageBox.Show("成功匯入要素數 : " + GElements.Count.ToString());
+                    TxtBox1.Text += Environment.NewLine + "要素匯入數量 : " + GElements.Count + Environment.NewLine;
+                    if (gduplicate.Count > 0)
+                    {
+                        TxtBox1.Text += Environment.NewLine + "相同意義要素組數量 : " + gduplicate.Count + Environment.NewLine;
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("匯入失敗");
+                }
+
+                sl = new SLDocument(fname, "工作表2");
+                for (int i = 0; i < 500; i++)
+                {
+                    if (string.IsNullOrEmpty(sl.GetCellValueAsString(i + 2, 1)))
+                        break;
+                    if (string.IsNullOrEmpty(sl.GetCellValueAsString(i + 2, 2)))
+                        continue;
+                    MMeasure data = new MMeasure
+                    {
+                        Group = sl.GetCellValueAsString(i + 2, 1).Trim(),
+                        MeasureID = sl.GetCellValueAsString(i + 2, 2).Trim(),
+                        MeasureName = sl.GetCellValueAsString(i + 2, 3).Trim(),
+                        Numerator = sl.GetCellValueAsString(i + 2, 4).Trim(),
+                        NumeratorName = sl.GetCellValueAsString(i + 2, 5).Trim(),
+                        Denominator = sl.GetCellValueAsString(i + 2, 6).Trim(),
+                        DenominatorName = sl.GetCellValueAsString(i + 2, 7).Trim(),
+                    };
+
+                    GMeasures.Add(data);
+                }
+                sl.CloseWithoutSaving();
+
+                sl = new SLDocument(fname, "工作表3");
+                for (int i = 0; i < 10; i++)
+                {
+                    if (string.IsNullOrEmpty(sl.GetCellValueAsString(i + 2, 1)))
+                        break;
+                    var multi = sl.GetCellValueAsString(i + 2, 2).Split('+').ToList();
+                    if (multi.Count <= 1)
+                        continue;
+                    GMulgroups[sl.GetCellValueAsString(i + 2, 1)] = multi;
+                }
+                sl.CloseWithoutSaving();
+
+                if (GMeasures.Count > 0)
+                {
+                    //MessageBox.Show("成功匯入指標數 : " + GMeasures.Count.ToString());
+                    TxtBox1.Text += Environment.NewLine + "指標匯入數量 : " + GMeasures.Count + Environment.NewLine;
+                }
+
+                if (GMeasures.Count > 0)
+                {
+                    List<string> group = new List<string>() { "全部" };
+                    foreach (var x in GMeasures)
+                    {
+                        if (group.Contains(x.Group))
+                            continue;
+                        else
+                        {
+                            group.Add(x.Group);
+                        }
+                    }
+                    if (GMulgroups.Count > 0)
+                    {
+                        group.AddRange(GMulgroups.Select(o => o.Key));
+                    }
+                    Combx1.ItemsSource = group;
+                    Combx2.ItemsSource = GMeasures.Select(o => o.MeasureID + ":" + o.MeasureName).ToList();
+                    Combx1.SelectedIndex = 0;
+                    List<string> spctype = new List<string>() { "Default", "U", "C", "P", "I", "nP", "Xbar_S", "Xbar_R" };
+                    Combx3.ItemsSource = spctype;
+                    Combx3.SelectedIndex = 0;
+                    group.Remove("全部");
+                    Combx5.ItemsSource = group;
+                    Combx5.SelectedIndex = 0;
+                }
+                LoadDataBASE();
+                GetMeasureRecords();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+        }
+        public void LoadDataBASE()
+        {
+            string fpath = Environment.CurrentDirectory + @"\要素備份";
+            if (!Directory.Exists(fpath))
+            {
+                Directory.CreateDirectory(fpath);
+            }
+            string fname = fpath + @"\指標收集存檔總檔.xlsx";
+            if (!System.IO.File.Exists(fname))
+                return;
+            using (SLDocument sl = new SLDocument(fname))
+            {
+                for (int i = 0; i < 500; i++)
+                {
+                    if (string.IsNullOrEmpty(sl.GetCellValueAsString(i + 2, 1)))
+                        break;
+
+                    if (GRecords.Count > 0 && GRecords.ContainsKey(sl.GetCellValueAsString(i + 2, 1)))
+                    {
+                        continue;
+                    }
+                    List<MElement> lme = new List<MElement>();
+                    List<string> duplicate = new List<string>();
+                    for (int j = 0; j < 12 + 6; j++)
+                    {
+                        if (string.IsNullOrEmpty(sl.GetCellValueAsString(1, j + 2)))
+                            break;
+                        if (!DateTime.TryParse(sl.GetCellValueAsString(1, j + 2), out DateTime dts))
+                            break;
+                        if (dts > DateTime.Now.AddMonths(-1 - 12 - 6) && dts < DateTime.Now)
+                        {
+                            if (duplicate.Contains(dts.ToString("yyyy/MM")))
+                                continue;
+                            else
+                                duplicate.Add(dts.ToString("yyyy/MM"));
+                            if (!string.IsNullOrEmpty(sl.GetCellValueAsString(i + 2, j + 2)))
+                            {
+                                MElement data = new MElement
+                                {
+                                    ElementID = sl.GetCellValueAsString(i + 2, 1).Trim(),
+                                    ElementRecord = sl.GetCellValueAsString(i + 2, j + 2).Trim(),
+                                    ElementDate = dts
+                                };
+                                lme.Add(data);
+                            }
+                        }
+                    }
+                    GRecords[sl.GetCellValueAsString(i + 2, 1)] = lme;
+
+                    try
+                    {
+                        if (gduplicate.ContainsKey(sl.GetCellValueAsString(i + 2, 1)))
+                        {
+                            var glists = gduplicate.Where(o => o.Key == sl.GetCellValueAsString(i + 2, 1)).FirstOrDefault().Value;
+                            foreach (var x in glists)
+                            {
+                                if (!GRecords.ContainsKey(x) &&
+                                    GElements.Find(o => o.ElementID == x) != null)
+                                {
+                                    GRecords[x] = lme;
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+
+                        MessageBox.Show(ex.Message);
+                    }
+                }
+
+                sl.CloseWithoutSaving();
+            }
+        }
         public void GetMeasureRecords()
         {
-            if (gmeasure.Count <= 0)
+            if (GMeasures.Count <= 0)
                 return;
-            if (gbackups.Count <= 0)
+            if (GRecords.Count <= 0)
                 return;
-            var sortbacks = gbackups.OrderBy(o => o.Key).ToDictionary(o => o.Key, p => p.Value.OrderByDescending(o => o.ElementRecord).ToList());
+            var sortbacks = GRecords.OrderBy(o => o.Key).ToDictionary(o => o.Key, p => p.Value.OrderByDescending(o => o.ElementRecord).ToList());
 
-            foreach (var x in gmeasure)
+            foreach (var x in GMeasures)
             {
                 int Destatus = 0;
                 int Nustatus = 0;
@@ -273,15 +587,15 @@ namespace MeasuresData
                         }
                     }
                 }
-                else if (x.Denominator.Contains(".") && x.Denominator.Contains("-"))
+                else if (x.Denominator.Contains(" - "))
                 {
                     Destatus = 2;
-                    var elements = x.Denominator.Split('-').ToList();
+                    var elements = x.Denominator.Split(new[] { " - " }, StringSplitOptions.None).ToList();
                     if (elements.Count > 0)
                     {
                         foreach (var ele in elements)
                         {
-                            var em = sortbacks.FirstOrDefault(o => o.Key == ele.Trim()).Value;
+                            var em = sortbacks.FirstOrDefault(o => o.Key == ele.Replace("[", "").Replace("]", "").Trim()).Value;
                             if (em != null)
                                 DenosPlus.Add(em);
                         }
@@ -301,15 +615,15 @@ namespace MeasuresData
                         }
                     }
                 }
-                else if (x.Numerator.Contains(".") && x.Numerator.Contains("-"))
+                else if (x.Numerator.Contains(" - "))
                 {
                     Nustatus = 2;
-                    var elements = x.Numerator.Split('-').ToList();
+                    var elements = x.Numerator.Split(new[] { " - " }, StringSplitOptions.None).ToList();
                     if (elements.Count > 0)
                     {
                         foreach (var ele in elements)
                         {
-                            var em = sortbacks.FirstOrDefault(o => o.Key == ele.Trim()).Value;
+                            var em = sortbacks.FirstOrDefault(o => o.Key == ele.Replace("[", "").Replace("]", "").Trim()).Value;
                             if (em != null)
                                 NumePlus.Add(em);
                         }
@@ -427,248 +741,13 @@ namespace MeasuresData
                 }
             }
         }
-        #endregion
-
-        private void Window_Loaded(object sender, RoutedEventArgs e)
-        {
-            List<string> exmonth = new List<string>();
-            for (int i = 0; i < 12 + 6; i++)
-                exmonth.Add(DateTime.Now.AddMonths(-i - 1).ToString("yyyy/MM"));
-            Combx4_Month.ItemsSource = Combx4_Month_ST.ItemsSource = Combx4_Month_Ed.ItemsSource = exmonth;
-            Combx4_Month.SelectedIndex = 0;
-            Combx4_Month_Ed.SelectedIndex = 1;
-            Combx4_Month_ST.SelectedIndex = 12;
-        }
-        //原始資料庫之要素資料
-        public List<MElement> gdata = new List<MElement>();
-        //原始資料庫之指標資料
-        public List<MMeasure> gmeasure = new List<MMeasure>();
-        //收回單位填寫之要素數值
-        public List<MElement> gcollect = new List<MElement>();
-        //資料庫中過往要素數值
-        public Dictionary<string, List<MElement>> gbackups = new Dictionary<string, List<MElement>>();
-        //原始資料庫之重覆要素
-        public Dictionary<string, List<string>> gduplicate = new Dictionary<string, List<string>>();
-
-        public List<string> SameEle = new List<string>();
-
-        public void LoadFile(string fname)
-        {
-            if (!System.IO.File.Exists(fname))
-                return;
-            gdata.Clear();
-            gmeasure.Clear();
-            gduplicate.Clear();
-            SameEle.Clear();
-            gbackups.Clear();
-            try
-            {
-                SLDocument sl = new SLDocument(fname, "工作表1");
-
-                for (int i = 0; i < 500; i++)
-                {
-                    if (string.IsNullOrEmpty(sl.GetCellValueAsString(i + 2, 1)))
-                        break;
-                    if (string.IsNullOrEmpty(sl.GetCellValueAsString(i + 2, 2)))
-                        continue;
-                    MElement data = new MElement
-                    {
-                        Group = sl.GetCellValueAsString(i + 2, 1).Trim(),
-                        Depart = sl.GetCellValueAsString(i + 2, 2).Trim(),
-                        ElementID = sl.GetCellValueAsString(i + 2, 3).Trim(),
-                        ElementName = sl.GetCellValueAsString(i + 2, 5).Trim(),
-                        User = sl.GetCellValueAsString(i + 2, 7).Trim()
-                    };
-                    for (int j = 12; j < 15; j++)
-                    {
-                        string content = sl.GetCellValueAsString(i + 2, j).Trim();
-                        if (string.IsNullOrEmpty(content))
-                            break;
-
-                        data.Complex = content.Contains("+");
-
-                        if (SameEle.Contains(content) || (gduplicate.ContainsKey(content) && gduplicate[content].Contains(data.ElementID)))
-                            continue;
-
-                        SameEle.Add(content);
-
-                        if (gduplicate.ContainsKey(data.ElementID))
-                        {
-                            if (!gduplicate[data.ElementID].Contains(content))
-                            {
-                                gduplicate[data.ElementID].Add(content);
-                            }
-                        }
-                        else
-                        {
-                            gduplicate.Add(data.ElementID, new List<string>() { content });
-                        }
-                    }
-
-                    gdata.Add(data);
-                }
-                sl.CloseWithoutSaving();
-
-                if (gdata.Count > 0)
-                {
-                    MessageBox.Show("匯入成功 : " + gdata.Count.ToString());
-                    TxtBox1.Text += Environment.NewLine + "指標匯入數量 : " + gdata.Count + Environment.NewLine;
-                    if (gduplicate.Count > 0)
-                    {
-                        TxtBox1.Text += Environment.NewLine + "相同意義要素組數量 : " + gduplicate.Count + Environment.NewLine;
-                    }
-                }
-                else
-                {
-                    MessageBox.Show("匯入失敗");
-                }
-
-                SLDocument sl2 = new SLDocument(fname, "工作表2");
-                for (int i = 0; i < 500; i++)
-                {
-                    if (string.IsNullOrEmpty(sl2.GetCellValueAsString(i + 2, 1)))
-                        break;
-                    if (string.IsNullOrEmpty(sl2.GetCellValueAsString(i + 2, 2)))
-                        continue;
-                    MMeasure data = new MMeasure
-                    {
-                        Group = sl2.GetCellValueAsString(i + 2, 1).Trim(),
-                        MeasureID = sl2.GetCellValueAsString(i + 2, 2).Trim(),
-                        MeasureName = sl2.GetCellValueAsString(i + 2, 3).Trim(),
-                        Numerator = sl2.GetCellValueAsString(i + 2, 4).Trim(),
-                        NumeratorName = sl2.GetCellValueAsString(i + 2, 5).Trim(),
-                        Denominator = sl2.GetCellValueAsString(i + 2, 6).Trim(),
-                        DenominatorName = sl2.GetCellValueAsString(i + 2, 7).Trim(),
-                    };
-
-                    gmeasure.Add(data);
-                }
-
-                sl2.CloseWithoutSaving();
-
-                MessageBox.Show("匯入成功 : " + gmeasure.Count.ToString());
-
-                if (gmeasure.Count > 0)
-                {
-                    List<string> group = new List<string>() { "全部" };
-                    foreach (var x in gmeasure)
-                    {
-                        if (group.Contains(x.Group))
-                            continue;
-                        else
-                        {
-                            group.Add(x.Group);
-                        }
-                    }
-                    Combx1.ItemsSource = group;
-                    Combx2.ItemsSource = gmeasure.Select(o => o.MeasureID + ":" + o.MeasureName).ToList();
-                    Combx1.SelectedIndex = 0;
-                    List<string> spctype = new List<string>() { "Default", "U", "C", "P", "I", "nP", "Xbar_S", "Xbar_R" };
-                    Combx3.ItemsSource = spctype;
-                    Combx3.SelectedIndex = 0;
-                }
-                LoadDataBASE();
-                GetMeasureRecords();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message);
-            }
-        }
-
-        private void LoadDataBASE()
-        {
-            string fpath = Environment.CurrentDirectory + @"\要素備份";
-            if (!Directory.Exists(fpath))
-            {
-                Directory.CreateDirectory(fpath);
-            }
-            string fname = fpath + @"\指標收集存檔總檔.xlsx";
-            if (!System.IO.File.Exists(fname))
-                return;
-            using (SLDocument sl = new SLDocument(fname))
-            {
-                for (int i = 0; i < 500; i++)
-                {
-                    if (string.IsNullOrEmpty(sl.GetCellValueAsString(i + 2, 1)))
-                        break;
-
-                    if (gbackups.Count > 0 && gbackups.ContainsKey(sl.GetCellValueAsString(i + 2, 1)))
-                    {
-                        continue;
-                    }
-                    List<MElement> lme = new List<MElement>();
-                    List<string> duplicate = new List<string>();
-                    for (int j = 0; j < 12 + 6; j++)
-                    {
-                        if (string.IsNullOrEmpty(sl.GetCellValueAsString(1, j + 2)))
-                            break;
-                        if (!DateTime.TryParse(sl.GetCellValueAsString(1, j + 2), out DateTime dts))
-                            break;
-                        if (dts > DateTime.Now.AddMonths(-1 - 12 - 6) && dts < DateTime.Now)
-                        {
-                            if (duplicate.Contains(dts.ToString("yyyy/MM")))
-                                continue;
-                            else
-                                duplicate.Add(dts.ToString("yyyy/MM"));
-                            if (!string.IsNullOrEmpty(sl.GetCellValueAsString(i + 2, j + 2)))
-                            {
-                                MElement data = new MElement
-                                {
-                                    ElementID = sl.GetCellValueAsString(i + 2, 1).Trim(),
-                                    ElementRecord = sl.GetCellValueAsString(i + 2, j + 2).Trim(),
-                                    ElementDate = dts
-                                };
-                                lme.Add(data);
-                            }
-                        }
-                    }
-                    gbackups[sl.GetCellValueAsString(i + 2, 1)] = lme;
-
-                    try
-                    {
-                        if (gduplicate.ContainsKey(sl.GetCellValueAsString(i + 2, 1)))
-                        {
-                            var glists = gduplicate.Where(o => o.Key == sl.GetCellValueAsString(i + 2, 1)).FirstOrDefault().Value;
-                            foreach (var x in glists)
-                            {
-                                if (!gbackups.ContainsKey(x) &&
-                                    gdata.Find(o => o.ElementID == x) != null)
-                                {
-                                    gbackups[x] = lme;
-                                }
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-
-                        MessageBox.Show(ex.Message);
-                    }
-                }
-
-                sl.CloseWithoutSaving();
-            }
-        }
-
-        private void BT_IMPORT_SOURCE(object sender, RoutedEventArgs e)
-        {
-            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
-            dlg.InitialDirectory = Environment.CurrentDirectory;
-            dlg.Title = "選取資料檔";
-            dlg.Filter = "xlsx files (*.*)|*.xlsx";
-            if (dlg.ShowDialog() == true)
-            {
-                LoadFile(dlg.FileName);
-            }
-        }
         public void ExportData(string type, string month)
         {
             if (!Directory.Exists(System.Environment.CurrentDirectory + @"\資料上傳"))
             {
                 Directory.CreateDirectory(System.Environment.CurrentDirectory + @"\資料上傳");
             }
-            if (gdata.Count <= 0)
+            if (GElements.Count <= 0)
             {
                 MessageBox.Show("尚未匯入定義清單");
                 return;
@@ -679,48 +758,48 @@ namespace MeasuresData
             }
             if (type == "TCPI")
             {
-                SLDocument nsl = new SLDocument();
+                SLDocument sl = new SLDocument();
                 /*
-                SLStyle style = nsl.CreateStyle();
+                SLStyle style = sl.CreateStyle();
                 style.Alignment.Horizontal = HorizontalAlignmentValues.Center;
                 style.Alignment.Vertical = VerticalAlignmentValues.Center;
                 style.Alignment.WrapText = true;
                 style.Font.FontSize = 12;
                 */
-                nsl.SetColumnWidth(1, 10);
-                nsl.SetColumnWidth(2, 15);
-                nsl.SetColumnWidth(3, 45);
-                nsl.SetColumnWidth(4, 10);
-                nsl.SetColumnWidth(5, 15);
-                nsl.SetCellValue(1, 1, "日期");
-                nsl.SetCellValue(1, 2, "要素代碼");
-                nsl.SetCellValue(1, 3, "要素名稱");
-                nsl.SetCellValue(1, 4, "頻率");
-                nsl.SetCellValue(1, 5, "提報要素值");
-                if (gdata.Count > 0)
+                sl.SetColumnWidth(1, 10);
+                sl.SetColumnWidth(2, 15);
+                sl.SetColumnWidth(3, 45);
+                sl.SetColumnWidth(4, 10);
+                sl.SetColumnWidth(5, 15);
+                sl.SetCellValue(1, 1, "日期");
+                sl.SetCellValue(1, 2, "要素代碼");
+                sl.SetCellValue(1, 3, "要素名稱");
+                sl.SetCellValue(1, 4, "頻率");
+                sl.SetCellValue(1, 5, "提報要素值");
+                if (GElements.Count > 0)
                 {
                     int index = 2;
-                    for (int i = 0; i < gdata.Count; i++)
+                    for (int i = 0; i < GElements.Count; i++)
                     {
-                        if (gdata[i].Group != type)
+                        if (GElements[i].Group != type)
                             continue;
-                        nsl.SetCellValue(index, 1, DateTime.Now.AddMonths(-1).ToString("yyyy/MM"));
-                        nsl.SetCellValue(index, 2, gdata[i].ElementID);
-                        nsl.SetCellValue(index, 3, gdata[i].ElementName);
-                        nsl.SetCellValue(index, 4, "月");
+                        sl.SetCellValue(index, 1, DateTime.Now.AddMonths(-1).ToString("yyyy/MM"));
+                        sl.SetCellValue(index, 2, GElements[i].ElementID);
+                        sl.SetCellValue(index, 3, GElements[i].ElementName);
+                        sl.SetCellValue(index, 4, "月");
                         if (gcollect.Count > 0)
                         {
                             var number = from num in gcollect
-                                         where num.ElementID == gdata[i].ElementID && !string.IsNullOrEmpty(num.ElementRecord)
+                                         where num.ElementID == GElements[i].ElementID && !string.IsNullOrEmpty(num.ElementRecord)
                                          select num;
                             if (number != null && number.ToList().Count > 0)
-                                nsl.SetCellValue(index, 5, Convert.ToDouble(number.ToList().First().ElementRecord));
+                                sl.SetCellValue(index, 5, Convert.ToDouble(number.ToList().First().ElementRecord));
                         }
                         index++;
                     }
                 }
                 string Refile = System.Environment.CurrentDirectory + @"\資料上傳\" + type + " (" + DateTime.Now.AddMonths(-1).ToString("yyyy-MM") + ")" + ".xlsx";
-                nsl.SaveAs(Refile);
+                sl.SaveAs(Refile);
             }
             else if (type == "評鑑持續")
             {
@@ -736,123 +815,123 @@ namespace MeasuresData
                 nsl.Save();
                 */
 
-                SLDocument nsl = new SLDocument();
-                SLStyle style = nsl.CreateStyle();
+                SLDocument sl = new SLDocument();
+                SLStyle style = sl.CreateStyle();
                 style.Alignment.Horizontal = HorizontalAlignmentValues.Center;
                 style.Alignment.Vertical = VerticalAlignmentValues.Center;
                 style.Font.Bold = true;
                 style.Font.FontSize = 12;
                 style.Fill.SetPattern(PatternValues.Solid, System.Drawing.Color.FromArgb(0, 176, 240), System.Drawing.Color.Black);
-                SLStyle style2 = nsl.CreateStyle();
+                SLStyle style2 = sl.CreateStyle();
                 style2.Alignment.WrapText = true;
                 style2.Alignment.Horizontal = HorizontalAlignmentValues.Center;
                 style2.Alignment.Vertical = VerticalAlignmentValues.Center;
 
-                nsl.SetColumnStyle(2, style2);
-                nsl.SetCellStyle(1, 1, style);
-                nsl.SetCellStyle(1, 2, style);
-                nsl.SetCellStyle(1, 3, style);
-                nsl.SetCellStyle(1, 4, style);
-                nsl.SetCellStyle(1, 5, style);
-                nsl.SetCellStyle(1, 6, style);
-                nsl.SetCellStyle(1, 7, style);
-                nsl.SetCellStyle(1, 8, style);
-                nsl.SetColumnWidth(1, 15);
-                nsl.SetColumnWidth(2, 45);
-                nsl.SetColumnWidth(3, 15);
-                nsl.SetColumnWidth(4, 15);
-                nsl.SetColumnWidth(5, 15);
-                nsl.SetColumnWidth(6, 15);
-                nsl.SetColumnWidth(7, 15);
-                nsl.SetColumnWidth(8, 15);
-                nsl.SetCellValue(1, 1, "要素代碼");
-                nsl.SetCellValue(1, 2, "要素名稱");
-                nsl.SetCellValue(1, 3, DateTime.Now.AddMonths(-1).ToString("yyyy/MM") + "(月)");
-                nsl.SetCellValue(1, 4, DateTime.Now.AddMonths(-2).ToString("yyyy/MM") + "(月)");
-                nsl.SetCellValue(1, 5, DateTime.Now.AddMonths(-3).ToString("yyyy/MM") + "(月)");
-                nsl.SetCellValue(1, 6, DateTime.Now.AddMonths(-4).ToString("yyyy/MM") + "(月)");
-                nsl.SetCellValue(1, 7, DateTime.Now.AddMonths(-5).ToString("yyyy/MM") + "(月)");
-                nsl.SetCellValue(1, 8, DateTime.Now.AddMonths(-6).ToString("yyyy/MM") + "(月)");
+                sl.SetColumnStyle(2, style2);
+                sl.SetCellStyle(1, 1, style);
+                sl.SetCellStyle(1, 2, style);
+                sl.SetCellStyle(1, 3, style);
+                sl.SetCellStyle(1, 4, style);
+                sl.SetCellStyle(1, 5, style);
+                sl.SetCellStyle(1, 6, style);
+                sl.SetCellStyle(1, 7, style);
+                sl.SetCellStyle(1, 8, style);
+                sl.SetColumnWidth(1, 15);
+                sl.SetColumnWidth(2, 45);
+                sl.SetColumnWidth(3, 15);
+                sl.SetColumnWidth(4, 15);
+                sl.SetColumnWidth(5, 15);
+                sl.SetColumnWidth(6, 15);
+                sl.SetColumnWidth(7, 15);
+                sl.SetColumnWidth(8, 15);
+                sl.SetCellValue(1, 1, "要素代碼");
+                sl.SetCellValue(1, 2, "要素名稱");
+                sl.SetCellValue(1, 3, DateTime.Now.AddMonths(-1).ToString("yyyy/MM") + "(月)");
+                sl.SetCellValue(1, 4, DateTime.Now.AddMonths(-2).ToString("yyyy/MM") + "(月)");
+                sl.SetCellValue(1, 5, DateTime.Now.AddMonths(-3).ToString("yyyy/MM") + "(月)");
+                sl.SetCellValue(1, 6, DateTime.Now.AddMonths(-4).ToString("yyyy/MM") + "(月)");
+                sl.SetCellValue(1, 7, DateTime.Now.AddMonths(-5).ToString("yyyy/MM") + "(月)");
+                sl.SetCellValue(1, 8, DateTime.Now.AddMonths(-6).ToString("yyyy/MM") + "(月)");
 
-                if (gdata.Count > 0)
+                if (GElements.Count > 0)
                 {
-                    var sortdata = gdata;
+                    var sortdata = GElements;
                     sortdata.Sort((x, y) => { return x.ElementID.CompareTo(y.ElementID); });
                     int index = 2;
                     for (int i = 0; i < sortdata.Count; i++)
                     {
                         if (sortdata[i].Group != type)
                             continue;
-                        nsl.SetCellValue(index, 1, sortdata[i].ElementID);
-                        nsl.SetCellValue(index, 2, sortdata[i].ElementName);
+                        sl.SetCellValue(index, 1, sortdata[i].ElementID);
+                        sl.SetCellValue(index, 2, sortdata[i].ElementName);
                         if (gcollect.Count > 0)
                         {
                             var number = from num in gcollect
-                                         where num.ElementID == gdata[i].ElementID && !string.IsNullOrEmpty(num.ElementRecord)
+                                         where num.ElementID == GElements[i].ElementID && !string.IsNullOrEmpty(num.ElementRecord)
                                          select num;
                             if (number != null && number.ToList().Count > 0)
-                                nsl.SetCellValue(index, 3, Convert.ToDouble(number.ToList().First().ElementRecord));
+                                sl.SetCellValue(index, 3, Convert.ToDouble(number.ToList().First().ElementRecord));
                         }
                         index++;
                     }
                 }
 
                 string Refile = System.Environment.CurrentDirectory + @"\資料上傳\" + type + " (" + DateTime.Now.AddMonths(-1).ToString("yyyy-MM") + ")" + ".xlsx";
-                nsl.SaveAs(Refile);
+                sl.SaveAs(Refile);
 
             }
             else if (type == "THIS")
             {
-                SLDocument nsl = new SLDocument();
+                SLDocument sl = new SLDocument();
                 /*
-                SLStyle style = nsl.CreateStyle();
+                SLStyle style = sl.CreateStyle();
                 style.Alignment.Horizontal = HorizontalAlignmentValues.Center;
                 style.Alignment.Vertical = VerticalAlignmentValues.Center;
                 style.Alignment.WrapText = true;
                 style.Font.FontSize = 12;
                 */
-                nsl.SetColumnWidth(1, 15);
-                nsl.SetColumnWidth(2, 15);
-                nsl.SetColumnWidth(3, 10);
-                nsl.SetColumnWidth(4, 10);
-                nsl.SetColumnWidth(5, 10);
-                nsl.SetColumnWidth(6, 10);
-                nsl.SetCellValue(1, 1, "醫院會員代碼");
-                nsl.SetCellValue(1, 2, "提報民國年分");
-                nsl.SetCellValue(1, 3, "提報月份");
-                nsl.SetCellValue(1, 4, "指標代碼");
-                nsl.SetCellValue(1, 5, "分子數據");
-                nsl.SetCellValue(1, 6, "分母數據");
+                sl.SetColumnWidth(1, 15);
+                sl.SetColumnWidth(2, 15);
+                sl.SetColumnWidth(3, 10);
+                sl.SetColumnWidth(4, 10);
+                sl.SetColumnWidth(5, 10);
+                sl.SetColumnWidth(6, 10);
+                sl.SetCellValue(1, 1, "醫院會員代碼");
+                sl.SetCellValue(1, 2, "提報民國年分");
+                sl.SetCellValue(1, 3, "提報月份");
+                sl.SetCellValue(1, 4, "指標代碼");
+                sl.SetCellValue(1, 5, "分子數據");
+                sl.SetCellValue(1, 6, "分母數據");
 
-                if (gmeasure.Count > 0)
+                if (GMeasures.Count > 0)
                 {
                     int index = 2;
                     Random rand = new Random();
-                    for (int i = 0; i < gmeasure.Count; i++)
+                    for (int i = 0; i < GMeasures.Count; i++)
                     {
-                        if (gmeasure[i].Group != type)
+                        if (GMeasures[i].Group != type)
                             continue;
-                        nsl.SetCellValue(index, 1, "JB0005");
-                        nsl.SetCellValue(index, 2, DateTime.Now.AddMonths(-1).AddYears(-1911).Year);
-                        nsl.SetCellValue(index, 3, DateTime.Now.AddMonths(-1).Month);
-                        nsl.SetCellValue(index, 4, gmeasure[i].MeasureID);
+                        sl.SetCellValue(index, 1, "JB0005");
+                        sl.SetCellValue(index, 2, DateTime.Now.AddMonths(-1).AddYears(-1911).Year);
+                        sl.SetCellValue(index, 3, DateTime.Now.AddMonths(-1).Month);
+                        sl.SetCellValue(index, 4, GMeasures[i].MeasureID);
                         if (gcollect.Count > 0)
                         {
-                            if (gmeasure[i].Numerator == "1")
-                                nsl.SetCellValue(index, 5, "1");
+                            if (GMeasures[i].Numerator == "1")
+                                sl.SetCellValue(index, 5, Convert.ToDouble("1"));
                             else
                             {
-                                var numer = gcollect.FirstOrDefault(o => o.ElementID == gmeasure[i].Numerator && !string.IsNullOrEmpty(o.ElementRecord));
+                                var numer = gcollect.FirstOrDefault(o => o.ElementID == GMeasures[i].Numerator && !string.IsNullOrEmpty(o.ElementRecord));
                                 if (numer != null)
-                                    nsl.SetCellValue(index, 5, Convert.ToDouble(numer.ElementRecord));
+                                    sl.SetCellValue(index, 5, Convert.ToDouble(numer.ElementRecord));
                             }
-                            if (gmeasure[i].Denominator == "1")
-                                nsl.SetCellValue(index, 6, "1");
+                            if (GMeasures[i].Denominator == "1")
+                                sl.SetCellValue(index, 6, Convert.ToDouble("1"));
                             else
                             {
-                                var deno = gcollect.FirstOrDefault(o => o.ElementID == gmeasure[i].Denominator && !string.IsNullOrEmpty(o.ElementRecord));
+                                var deno = gcollect.FirstOrDefault(o => o.ElementID == GMeasures[i].Denominator && !string.IsNullOrEmpty(o.ElementRecord));
                                 if (deno != null)
-                                    nsl.SetCellValue(index, 6, Convert.ToDouble(deno.ElementRecord));
+                                    sl.SetCellValue(index, 6, Convert.ToDouble(deno.ElementRecord));
                             }
                             /*
                             var numer = from num in gcollect
@@ -874,35 +953,151 @@ namespace MeasuresData
                     }
                 }
                 string Refile = System.Environment.CurrentDirectory + @"\資料上傳\" + type + " (" + DateTime.Now.AddMonths(-1).ToString("yyyy-MM") + ")" + ".xlsx";
-                nsl.SaveAs(Refile);
+                sl.SaveAs(Refile);
             }
-            MessageBox.Show("轉檔成功");
-        }
-
-        private void BT_TO_TCPI(object sender, RoutedEventArgs e)
-        {
-            ExportData("TCPI", Combx4_Month.SelectedValue.ToString());
-
-            /*
-            if (FileStatusHelper.IsFileOccupied(@"檔案路徑"))
+            else if (type == "P4P")
             {
-                MessageBox.Show("檔案已被佔用");
+                SLDocument sl = new SLDocument();
+                sl.SetColumnWidth(1, 15);
+                sl.SetColumnWidth(2, 15);
+                sl.SetColumnWidth(3, 45);
+                sl.SetColumnWidth(4, 10);
+                sl.SetColumnWidth(5, 15);
+                sl.SetCellValue(1, 1, "提報月份");
+                sl.SetCellValue(1, 2, "要素代碼");
+                sl.SetCellValue(1, 3, "要素名稱");
+                sl.SetCellValue(1, 4, "頻率");
+                sl.SetCellValue(1, 5, "提報要素值");
+
+                SLStyle style = sl.CreateStyle();
+                style.Fill.SetPattern(PatternValues.Solid, System.Drawing.Color.Cyan, System.Drawing.Color.Black);
+                sl.SetCellStyle(1, 1, style);
+                sl.SetCellStyle(1, 2, style);
+                sl.SetCellStyle(1, 3, style);
+                sl.SetCellStyle(1, 4, style);
+                sl.SetCellStyle(1, 5, style);
+
+                if (GElements.Count > 0)
+                {
+                    int index = 2;
+                    GElements.ForEach((x) =>
+                    {
+                        if (x.Group == type)
+                        {
+                            sl.SetCellValue(index, 1, DateTime.Now.AddMonths(-1).ToString("yyyy/MM"));
+                            sl.SetCellValue(index, 2, x.ElementID);
+                            sl.SetCellValue(index, 3, x.ElementName);
+                            sl.SetCellValue(index, 4, "月");
+                            if (gcollect.Count > 0)
+                            {
+                                var number = gcollect.FirstOrDefault(o => o.ElementID == x.ElementID && !string.IsNullOrEmpty(o.ElementRecord));
+                                if (number != null)
+                                    sl.SetCellValue(index, 5, Convert.ToDouble(number.ElementRecord));
+                            }
+                            index++;
+                        }
+                    });
+                    /*
+                    for (int i = 0; i < GElements.Count; i++)
+                    {
+                        if (GElements[i].Group != type)
+                            continue;
+                        sl.SetCellValue(index, 1, DateTime.Now.AddMonths(-1).ToString("yyyy/MM"));
+                        sl.SetCellValue(index, 2, GElements[i].ElementID);
+                        sl.SetCellValue(index, 3, GElements[i].ElementName);
+                        sl.SetCellValue(index, 4, "月");
+                        if (gcollect.Count > 0)
+                        {
+                            var number = gcollect.FirstOrDefault(o => o.ElementID == GElements[i].ElementID && !string.IsNullOrEmpty(o.ElementRecord));
+                            if (number != null)
+                                sl.SetCellValue(index, 5, Convert.ToDouble(number.ElementRecord));
+                        }
+                        index++;
+                    }
+                    */
+                }
+                string Refile = System.Environment.CurrentDirectory + @"\資料上傳\" + type + " (" + DateTime.Now.AddMonths(-1).ToString("yyyy-MM") + ")" + ".xlsx";
+                sl.SaveAs(Refile);
             }
+            if (GMulgroups.Count > 0)
+            {
+                foreach (var x in GMulgroups)
+                {
+                    if (x.Key == "內科")
+                    {
+                        List<MElement> Geles = new List<MElement>();
+                        var fname = @"\指標數據總資料" + DateTime.Now.AddMonths(-1).ToString("yyyy-MM") + x.Key + "(群組資料).xlsx";
+                        var Gmeas = GMeasures.Where(o => o.Group == "群組指標").ToList();
+                        foreach (var ele in Gmeas)
+                        {
+                            MMeasure tp = new MMeasure();
+                            List<MMeasure> tps = new List<MMeasure>();
+                            foreach (var station in x.Value)
+                            {
+                                if (station.Contains(ele.MeasureID))
+                                {
+                                    tps.Add(ele);
+                                }
+                            }
+                        }
+                        using (SLDocument sl = new SLDocument())
+                        {
+
+                            //sl.SaveAs(fpath + fname);
+                        }
+                    }
+                }
+            }
+            MessageBox.Show("轉檔結束");
+        }
+        public void LoadCustom(string fname)
+        {
+            if (!System.IO.File.Exists(fname))
+                return;
+            string[] datas = File.ReadAllLines(fname);
+            string data = datas.FirstOrDefault(x => x.Substring(0, 1) != "#");
+            List<string> customs = data.Split(';').ToList();
+            if (customs.Count <= 0)
+                return;
+            var incus = customs.ConvertAll(s => Int32.Parse(s)).ToList();
+            List<MElement> sdata = new List<MElement>();
+            List<MMeasure> smeasure = new List<MMeasure>();
+            string gtype;
+            switch (incus[0])
+            {
+                case 0:
+                    gtype = "TCPI";
+                    break;
+                case 1:
+                    gtype = "THIS";
+                    break;
+                case 2:
+                    gtype = "HACMI";
+                    break;
+                case 3:
+                    gtype = "";
+                    break;
+                default:
+                    gtype = "TCPI";
+                    break;
+            };
+            if (!string.IsNullOrEmpty(gtype))
+                sdata = GElements.Where(x => x.Group == gtype).ToList();
             else
+                sdata = GElements;
+        }
+        #endregion
+
+        private void BT_IMPORT_SOURCE(object sender, RoutedEventArgs e)
+        {
+            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
+            dlg.InitialDirectory = Environment.CurrentDirectory;
+            dlg.Title = "選取資料檔";
+            dlg.Filter = "xlsx files (*.*)|*.xlsx";
+            if (dlg.ShowDialog() == true)
             {
-                MessageBox.Show("檔案未被佔用");
+                LoadFile(dlg.FileName);
             }
-            */
-        }
-
-        private void BT_TO_HACMI(object sender, RoutedEventArgs e)
-        {
-            ExportData("評鑑持續", Combx4_Month.SelectedValue.ToString());
-        }
-
-        private void BT_TO_THIS(object sender, RoutedEventArgs e)
-        {
-            ExportData("THIS", Combx4_Month.SelectedValue.ToString());
         }
 
         private void BT_IMPORT_MEASUREDATA(object sender, RoutedEventArgs e)
@@ -927,11 +1122,14 @@ namespace MeasuresData
             }
 
         }
+
         private void BT_IMPORT_RESULT(object sender, RoutedEventArgs e)
         {
             gcollect.Clear();
 
             List<string> duplicate = new List<string>();
+            List<string> uncollect = new List<string>();
+            List<string> collect = new List<string>();
 
             string folderName = System.Environment.CurrentDirectory + @"\資料匯總";
             try
@@ -954,13 +1152,23 @@ namespace MeasuresData
                         if (string.IsNullOrEmpty(sl.GetCellValueAsString(i, 3)))
                             continue;
                         if (string.IsNullOrEmpty(sl.GetCellValueAsString(i, 5)))
+                        {
+                            if (!uncollect.Contains(sl.GetCellValueAsString(i, 3).Trim()) && !collect.Contains(sl.GetCellValueAsString(i, 3).Trim()))
+                                uncollect.Add(sl.GetCellValueAsString(i, 3).Trim());
                             continue;
+                        }
                         // 匯入資料若無法轉換成double，表示資料有錯誤
                         if (!Double.TryParse(sl.GetCellValueAsString(i, 5).Trim(), out double rd))
                         {
                             MessageBox.Show("指標: " + sl.GetCellValueAsString(i, 3).Trim() + "之數值有誤 (" + sl.GetCellValueAsString(i, 5).Trim() + ")");
+                            if (!uncollect.Contains(sl.GetCellValueAsString(i, 3).Trim()) && !collect.Contains(sl.GetCellValueAsString(i, 3).Trim()))
+                                uncollect.Add(sl.GetCellValueAsString(i, 3).Trim());
                             continue;
                         }
+                        if (!collect.Contains(sl.GetCellValueAsString(i, 3).Trim()))
+                            collect.Add(sl.GetCellValueAsString(i, 3).Trim());
+                        if (uncollect.Contains(sl.GetCellValueAsString(i, 3).Trim()))
+                            uncollect.Remove(sl.GetCellValueAsString(i, 3).Trim());
                         MElement data = new MElement
                         {
                             ElementID = sl.GetCellValueAsString(i, 3).Trim(),
@@ -1063,8 +1271,14 @@ namespace MeasuresData
                         }
                         */
                     }
-
+                    
                     sl.CloseWithoutSaving();
+                }
+
+                if (uncollect.Count > 0)
+                {
+                    TxtBox1.Text += Environment.NewLine + string.Format("未成功收回指標 ({0}) 個 : {1}", uncollect.Count, string.Join(",", uncollect)) +
+                        Environment.NewLine;
                 }
                 try
                 {
@@ -1118,54 +1332,61 @@ namespace MeasuresData
                         {
                             foreach (var x in gduplicate)
                             {
-                                var glists = gcollect.FirstOrDefault(o => o.ElementID == x.Key);
-                                if (glists != null)
-                                    continue;
-                                var complexs = x.Value.FirstOrDefault(o => o.Contains("+"));
-                                if (complexs != null)
+                                var glist = gcollect.FirstOrDefault(o => o.ElementID == x.Key);
+                                if (glist == null)
                                 {
-                                    var elements = complexs.Split('+').ToList();
-                                    bool collected = false;
-                                    double total = 0;
+                                    var complexs = x.Value.FirstOrDefault(o => o.Contains("+"));
+                                    if (complexs != null)
+                                    {
+                                        var elements = complexs.Split('+').ToList();
+                                        bool collected = false;
+                                        double total = 0;
 
-                                    if (elements.Count > 0)
-                                    {
-                                        foreach (var ele in elements)
+                                        if (elements.Count > 0)
                                         {
-                                            var em = gcollect.FirstOrDefault(o => o.ElementID == ele.Trim());
-                                            if (em == null)
+                                            foreach (var ele in elements)
                                             {
-                                                collected = false;
-                                                break;
-                                            }
-                                            if (em != null && double.TryParse(em.ElementRecord, out double record))
-                                                total += record;
-                                            collected = true;
-                                        }
-                                    }
-                                    if (collected)
-                                    {
-                                        gcollect.Add(new MElement
-                                        {
-                                            ElementID = x.Key,
-                                            ElementRecord = total.ToString(),
-                                            ElementDate = DateTime.Now.AddMonths(-1)
-                                        });
-                                        if (x.Value.Count > 1)
-                                        {
-                                            x.Value.ForEach((o) =>
-                                            {
-                                                if (!o.Contains("+") && gcollect.FirstOrDefault(z => z.ElementID == o) == null)
+                                                var em = gcollect.FirstOrDefault(o => o.ElementID == ele.Trim());
+                                                if (em == null)
                                                 {
+                                                    collected = false;
+                                                    break;
+                                                }
+                                                if (double.TryParse(em.ElementRecord, out double record))
+                                                    total += record;
+                                                else
+                                                {
+                                                    MessageBox.Show("error" + ele.Trim());
+                                                    collected = false;
+                                                    break;
+                                                }
+                                                collected = true;
+                                            }
+                                        }
+                                        if (collected)
+                                        {
+                                            gcollect.Add(new MElement
+                                            {
+                                                ElementID = x.Key,
+                                                ElementRecord = total.ToString(),
+                                                ElementDate = DateTime.Now.AddMonths(-1)
+                                            });
+                                            if (x.Value.Count > 1)
+                                            {
+                                                x.Value.ForEach((o) =>
+                                                {
+                                                    if (!o.Contains("+") && gcollect.FirstOrDefault(z => z.ElementID == o) == null)
+                                                    {
                                                     //MessageBox.Show(o);
                                                     gcollect.Add(new MElement
-                                                    {
-                                                        ElementID = o,
-                                                        ElementRecord = total.ToString(),
-                                                        ElementDate = DateTime.Now.AddMonths(-1)
-                                                    });
-                                                }
-                                            });
+                                                        {
+                                                            ElementID = o,
+                                                            ElementRecord = total.ToString(),
+                                                            ElementDate = DateTime.Now.AddMonths(-1)
+                                                        });
+                                                    }
+                                                });
+                                            }
                                         }
                                     }
                                 }
@@ -1173,18 +1394,14 @@ namespace MeasuresData
                                 {
                                     x.Value.ForEach((o) =>
                                     {
-                                        if (gcollect.FirstOrDefault(z => z.ElementID == o) == null)
+                                        if (!o.Contains("+") && gcollect.FirstOrDefault(z => z.ElementID == o) == null)
                                         {
-                                            var glist = gcollect.FirstOrDefault(z => z.ElementID == x.Key);
-                                            if (glist != null)
+                                            gcollect.Add(new MElement
                                             {
-                                                gcollect.Add(new MElement
-                                                {
-                                                    ElementID = o,
-                                                    ElementRecord = glist.ElementRecord,
-                                                    ElementDate = DateTime.Now.AddMonths(-1)
-                                                });
-                                            }
+                                                ElementID = o,
+                                                ElementRecord = glist.ElementRecord,
+                                                ElementDate = DateTime.Now.AddMonths(-1)
+                                            });
                                         }
                                     });
                                 }
@@ -1193,23 +1410,19 @@ namespace MeasuresData
                         /// 再次檢查&合併相同數值之要素
                         foreach (var x in gduplicate)
                         {
-                            var glists = gcollect.FirstOrDefault(o => o.ElementID == x.Key);
-                            if (glists != null)
+                            var glist = gcollect.FirstOrDefault(o => o.ElementID == x.Key);
+                            if (glist == null)
                                 continue;
                             x.Value.ForEach((o) =>
                             {
                                 if (!o.Contains("+") && gcollect.FirstOrDefault(z => z.ElementID == o) == null)
                                 {
-                                    var glist = gcollect.FirstOrDefault(z => z.ElementID == x.Key);
-                                    if (glist != null)
+                                    gcollect.Add(new MElement
                                     {
-                                        gcollect.Add(new MElement
-                                        {
-                                            ElementID = o,
-                                            ElementRecord = glist.ElementRecord,
-                                            ElementDate = DateTime.Now.AddMonths(-1)
-                                        });
-                                    }
+                                        ElementID = o,
+                                        ElementRecord = glist.ElementRecord,
+                                        ElementDate = DateTime.Now.AddMonths(-1)
+                                    });
                                 }
                             });
                         }
@@ -1234,7 +1447,7 @@ namespace MeasuresData
             {
                 if (gcollect.Count > 0)
                 {
-                    TxtBox1.Text += Environment.NewLine + string.Format("指標收回數量 : {0}/{1} ({2}%)", gcollect.Count, gdata.Count, gcollect.Count * 100 / gdata.Count) +
+                    TxtBox1.Text += Environment.NewLine + string.Format("指標收回數量 : {0}/{1} ({2}%)", gcollect.Count, GElements.Count, gcollect.Count * 100 / GElements.Count) +
                         Environment.NewLine;
                     //gcollect.ForEach((o) => { TxtBox1.Text += string.Join(" , ", o.ElementID); });
                     gcollect.Sort((x, y) => { return x.ElementID.CompareTo(y.ElementID); });
@@ -1282,10 +1495,11 @@ namespace MeasuresData
                             }
                             if ((dts.Month == DateTime.Now.Month && dts.Year == DateTime.Now.Year) || dts >= DateTime.Now)
                                 return;
-                            if (dts.Month != DateTime.Now.AddMonths(-1).Month &&
+                            if (dts.Month != DateTime.Now.AddMonths(-1).Month ||
                                 dts.Year != DateTime.Now.AddMonths(-1).Year)
                             {
-                                sl.CopyColumn(2, 100, 3);
+                                //sl.CopyColumn(2, 100, 3);
+                                sl.InsertColumn(2, 1);
                                 sl.SetCellValue(1, 2, DateTime.Now.AddMonths(-1).ToString("yyyy/MM"));
                             }
 
@@ -1312,22 +1526,18 @@ namespace MeasuresData
                                 }
                             }
 
-                            sl.SaveAs(fpath + fname2);
+                            sl.SaveAs(fpath + @"\test" + DateTime.Now.ToString("yyyy-MM") + ".xlsx");
                         }
                     }
                     // 將收集之資料匯回資料庫中
                     foreach (var x in gcollect)
                     {
-                        if (gbackups.ContainsKey(x.ElementID))
+                        if (GRecords.ContainsKey(x.ElementID))
                         {
-                            var dataex = gbackups[x.ElementID].FirstOrDefault(o => o.ElementID == x.ElementID && o.ElementDate == x.ElementDate);
+                            var dataex = GRecords[x.ElementID].FirstOrDefault(o => o.ElementID == x.ElementID && o.ElementDate == x.ElementDate);
                             if (dataex != null)
-                                gbackups[x.ElementID].Remove(dataex);
-                            gbackups[x.ElementID].Add(x);
-                        }
-                        else
-                        {
-
+                                GRecords[x.ElementID].Remove(dataex);
+                            GRecords[x.ElementID].Add(x);
                         }
                     }
                 }
@@ -1337,9 +1547,10 @@ namespace MeasuresData
                 MessageBox.Show(ex.ToString());
             }
         }
+
         private void BT_TO_EXPORT_CLINIC(object sender, RoutedEventArgs e)
         {
-            if (gdata.Count <= 0)
+            if (GElements.Count <= 0)
             {
                 MessageBox.Show("尚未匯入指標清單");
                 return;
@@ -1351,12 +1562,15 @@ namespace MeasuresData
             ///
             /// 匯出時濾掉名稱不同但相同數值的要素
             ///
-            var newda = gdata;
-            newda.Sort((x, y) => { return x.ElementName.CompareTo(y.ElementName); });
+            var newda = GElements;
+            if (GMulgroups.Count <= 0)
+                newda.Sort((x, y) => { return x.ElementName.CompareTo(y.ElementName); });
+            else
+                newda.Sort((x, y) => { return x.ElementID.CompareTo(y.ElementID); });
             var newdata = newda.GroupBy(o => o.Depart)
                     .ToDictionary(o => o.Key, o => o.ToList());
 
-            var unitcounts = gdata.Where(o => !SameEle.Contains(o.ElementID))
+            var unitcounts = GElements.Where(o => !SameEle.Contains(o.ElementID))
                 .GroupBy(o => o.Depart)
                 .ToDictionary(o => o.Key, o => o.ToList().Count);
             TxtBox1.Text += Environment.NewLine + "指標收集單位數 : " + unitcounts.Count +
@@ -1421,11 +1635,11 @@ namespace MeasuresData
 
                         nsl.SetCellStyle(index, 5, style);
 
-                        if (gbackups.Count > 0 && gbackups.ContainsKey(x.Value[i].ElementID))
+                        if (GRecords.Count > 0 && GRecords.ContainsKey(x.Value[i].ElementID))
                         {
                             for (int j = 2; j < 7; j++)
                             {
-                                var data = gbackups[x.Value[i].ElementID].Find(o => o.ElementDate.Month == DateTime.Now.AddMonths(-j).Month
+                                var data = GRecords[x.Value[i].ElementID].Find(o => o.ElementDate.Month == DateTime.Now.AddMonths(-j).Month
                                 && o.ElementDate.Year == DateTime.Now.AddMonths(-j).Year);
                                 if (data == null)
                                     continue;
@@ -1458,7 +1672,7 @@ namespace MeasuresData
 
         private void BT_IMPORT_OLDDATA(object sender, RoutedEventArgs e)
         {
-            if (gmeasure.Count <= 0)
+            if (GMeasures.Count <= 0)
             {
                 MessageBox.Show("請先匯入指標資料");
                 return;
@@ -1490,7 +1704,7 @@ namespace MeasuresData
                                 continue;
                             if (!DateTime.TryParse(((sl.GetCellValueAsInt32(i + 2, 2) + 1911).ToString() + "/" + sl.GetCellValueAsString(i + 2, 3)), out DateTime dts))
                                 continue;
-                            var measureid = gmeasure.Where(o => o.MeasureID == sl.GetCellValueAsString(i + 2, 4)).FirstOrDefault();
+                            var measureid = GMeasures.Where(o => o.MeasureID == sl.GetCellValueAsString(i + 2, 4)).FirstOrDefault();
                             if (measureid == null)
                                 continue;
 
@@ -1505,18 +1719,18 @@ namespace MeasuresData
                                         ElementRecord = sl.GetCellValueAsString(i + 2, 5).Trim(),
                                         ElementDate = dts
                                     };
-                                    if (!gbackups.ContainsKey(measureid.Numerator))
+                                    if (!GRecords.ContainsKey(measureid.Numerator))
                                     {
 
                                         lmeNume.Add(dataNume);
-                                        gbackups[measureid.Numerator] = lmeNume;
+                                        GRecords[measureid.Numerator] = lmeNume;
                                     }
                                     else
                                     {
-                                        var meNume = gbackups[measureid.Numerator].FirstOrDefault(o => o.ElementDate == dts);
+                                        var meNume = GRecords[measureid.Numerator].FirstOrDefault(o => o.ElementDate == dts);
                                         if (meNume == null)
                                         {
-                                            gbackups[measureid.Numerator].Add(dataNume);
+                                            GRecords[measureid.Numerator].Add(dataNume);
                                         }
                                     }
                                 }
@@ -1529,18 +1743,18 @@ namespace MeasuresData
                                         ElementRecord = sl.GetCellValueAsString(i + 2, 6).Trim(),
                                         ElementDate = dts
                                     };
-                                    if (!gbackups.ContainsKey(measureid.Denominator))
+                                    if (!GRecords.ContainsKey(measureid.Denominator))
                                     {
 
                                         lmeDeno.Add(dataDeno);
-                                        gbackups[measureid.Denominator] = lmeDeno;
+                                        GRecords[measureid.Denominator] = lmeDeno;
                                     }
                                     else
                                     {
-                                        var meDeno = gbackups[measureid.Denominator].FirstOrDefault(o => o.ElementDate == dts);
+                                        var meDeno = GRecords[measureid.Denominator].FirstOrDefault(o => o.ElementDate == dts);
                                         if (meDeno == null)
                                         {
-                                            gbackups[measureid.Denominator].Add(dataDeno);
+                                            GRecords[measureid.Denominator].Add(dataDeno);
                                         }
                                     }
                                 }
@@ -1564,7 +1778,7 @@ namespace MeasuresData
 
         private void BT_EXPORT_ELEMENT(object sender, RoutedEventArgs e)
         {
-            if (gbackups.Count <= 0)
+            if (GRecords.Count <= 0)
                 return;
             /*
             if (gcollect.Count > 0)
@@ -1582,7 +1796,7 @@ namespace MeasuresData
             }
             */
 
-            var sortbacks = gbackups.OrderBy(o => o.Key).ToDictionary(o => o.Key, p => p.Value);
+            var sortbacks = GRecords.OrderBy(o => o.Key).ToDictionary(o => o.Key, p => p.Value);
 
             string fpath = Environment.CurrentDirectory + @"\要素備份";
 
@@ -1634,9 +1848,9 @@ namespace MeasuresData
 
         private void BT_EXPORT_MEASURE(object sender, RoutedEventArgs e)
         {
-            if (gmeasure.Count <= 0)
+            if (GMeasures.Count <= 0)
                 return;
-            if (gbackups.Count <= 0)
+            if (GRecords.Count <= 0)
                 return;
             string fpath = Environment.CurrentDirectory + @"\要素備份";
 
@@ -1646,7 +1860,7 @@ namespace MeasuresData
             }
             string fname = @"\指標數據總資料" + DateTime.Now.AddMonths(-1).ToString("yyyy-MM") + ".xlsx";
 
-            var sortbacks = gbackups.OrderBy(o => o.Key).ToDictionary(o => o.Key, p => p.Value.OrderByDescending(o => o.ElementRecord).ToList());
+            var sortbacks = GRecords.OrderBy(o => o.Key).ToDictionary(o => o.Key, p => p.Value.OrderByDescending(o => o.ElementRecord).ToList());
             try
             {
                 using (SLDocument sl = new SLDocument())
@@ -1671,7 +1885,7 @@ namespace MeasuresData
                         sl.SetCellValue(1, i + 4, DateTime.Now.AddMonths(-i - 1).ToString("yyyy/MM"));
 
                     int index = 2;
-                    foreach (var x in gmeasure)
+                    foreach (var x in GMeasures)
                     {
                         sl.SetCellValue(index, 1, x.Group);
                         sl.SetCellValue(index, 2, x.MeasureID);
@@ -1702,15 +1916,15 @@ namespace MeasuresData
                                 }
                             }
                         }
-                        else if (x.Denominator.Contains(".") && x.Denominator.Contains("-"))
+                        else if (x.Denominator.Contains(" - "))
                         {
                             Destatus = 2;
-                            var elements = x.Denominator.Split('-').ToList();
+                            var elements = x.Denominator.Split(new[] { " - " }, StringSplitOptions.None).ToList();
                             if (elements.Count > 0)
                             {
                                 foreach (var ele in elements)
                                 {
-                                    var em = sortbacks.FirstOrDefault(o => o.Key == ele.Trim()).Value;
+                                    var em = sortbacks.FirstOrDefault(o => o.Key == ele.Replace("[", "").Replace("]", "").Trim()).Value;
                                     if (em != null)
                                         DenosPlus.Add(em);
                                 }
@@ -1730,15 +1944,15 @@ namespace MeasuresData
                                 }
                             }
                         }
-                        else if (x.Numerator.Contains(".") && x.Numerator.Contains("-"))
+                        else if (x.Numerator.Contains(" - "))
                         {
                             Nustatus = 2;
-                            var elements = x.Numerator.Split('-').ToList();
+                            var elements = x.Numerator.Split(new[] { " - " }, StringSplitOptions.None).ToList();
                             if (elements.Count > 0)
                             {
                                 foreach (var ele in elements)
                                 {
-                                    var em = sortbacks.FirstOrDefault(o => o.Key == ele.Trim()).Value;
+                                    var em = sortbacks.FirstOrDefault(o => o.Key == ele.Replace("[", "").Replace("]", "").Trim()).Value;
                                     if (em != null)
                                         NumePlus.Add(em);
                                 }
@@ -1840,7 +2054,7 @@ namespace MeasuresData
                                     MessageBox.Show(ex.ToString());
                                 }
                             }
-                            /*
+                            
                             //將分子、分母數據加回 gmeasure
                             if (!x.Records.ContainsKey(DateTime.Now.AddMonths(-i - 1).ToString("yyyy/MM")))
                             {
@@ -1851,7 +2065,7 @@ namespace MeasuresData
                             {
                                 x.Records[DateTime.Now.AddMonths(-i - 1).ToString("yyyy/MM")] = new List<double>() { sl.GetCellValueAsDouble(index + 1, i + 4), sl.GetCellValueAsDouble(index + 2, i + 4) };
                             }
-                            */
+                            
 
                             if (!string.IsNullOrEmpty(sl.GetCellValueAsString(index + 2, i + 4)))
                             {
@@ -1880,7 +2094,7 @@ namespace MeasuresData
 
         private void BT_EXPORT_CHART(object sender, RoutedEventArgs e)
         {
-            if (gmeasure.Count < 0)
+            if (GMeasures.Count < 0)
                 return;
             SPCtype spctype;
             if (Combx3.SelectedIndex < 0 || Combx2.SelectedIndex < 0)
@@ -1893,7 +2107,7 @@ namespace MeasuresData
                 spctype = (SPCtype)Combx3.SelectedIndex;
 
             var selmeasure = Combx2.SelectedValue.ToString().Split(':').FirstOrDefault();
-            var smeasure = gmeasure.FirstOrDefault(o => o.MeasureID == selmeasure);
+            var smeasure = GMeasures.FirstOrDefault(o => o.MeasureID == selmeasure);
             if (smeasure == null || smeasure.Records.Count <= 0)
                 return;
             if (!DateTime.TryParse(Combx4_Month_Ed.SelectedValue.ToString(), out DateTime ed)
@@ -1942,6 +2156,84 @@ namespace MeasuresData
                         //sl.SetCellValue(8, 3 + i, sl.GetCellValueAsDouble(3, 3 + 12 - i));
                         //sl.SetCellValue(9, 3 + i, sl.GetCellValueAsDouble(4, 3 + 12 - i));
                     }
+                    /*
+                     * 數值版
+                     */
+                    double avg = 0;
+                    double sig = 0;
+                    double mea = 0;
+                    double amp = 1;
+                    double u_p = 0;
+                    double n_n = 0;
+
+                    double sum_a = 0;
+                    double sum_b = 0;
+                    for (int i = 0; i < cMonths; i++)
+                    {
+                        sum_a += sl.GetCellValueAsDouble(8, 3 + i);
+                        sum_b += sl.GetCellValueAsDouble(9, 3 + i);
+                    }
+                    if (spctype == SPCtype.C)
+                    {
+                        u_p = sum_a / cMonths;
+                        n_n = cMonths;
+                        //sl.SetCellValue(2, 1, "c");
+                    }
+                    else
+                    {
+                        u_p = sum_a / sum_b;
+                        n_n = sum_b / cMonths;
+                        //sl.SetCellValue(2, 1, "u or p");
+                    }
+
+                    //sl.SetCellValue(3, 1, u_p);
+                    //sl.SetCellValue(4, 1, "n");
+                    //sl.SetCellValue(5, 1, n_n);
+                    amp = spctype == SPCtype.P ? 1000 : 1;
+                    avg = spctype == SPCtype.nP ? u_p * n_n : u_p;
+
+                    for (int i = 0; i < cMonths; i++)
+                    {
+                        int index = 3 + i;
+                        if (spctype == SPCtype.P)
+                        {
+                            sig = Math.Sqrt(u_p * (1 - u_p) / sl.GetCellValueAsDouble(9, index));
+                            mea = (sl.GetCellValueAsDouble(8, index) / sl.GetCellValueAsDouble(9, index)) * amp;
+                        }
+                        else if (spctype == SPCtype.U)
+                        {
+                            sig = Math.Sqrt(u_p / sl.GetCellValueAsDouble(9, index));
+                            mea = (sl.GetCellValueAsDouble(8, index) / sl.GetCellValueAsDouble(9, index)) * amp;
+                        }
+                        else if (spctype == SPCtype.C)
+                        {
+                            sig = Math.Sqrt(u_p);
+                            mea = sl.GetCellValueAsDouble(8, index);
+                        }
+                        else if (spctype == SPCtype.nP)
+                        {
+                            sig = Math.Sqrt(n_n * u_p * (1 - u_p));
+                            mea = sl.GetCellValueAsDouble(8, index);
+                        }
+                        else //暫時借用 U 圖
+                        {
+                            sig = Math.Sqrt(u_p / sl.GetCellValueAsDouble(9, index));
+                            mea = (sl.GetCellValueAsDouble(8, index) / sl.GetCellValueAsDouble(9, index)) * amp;
+                        }
+                        if (sl.GetCellValueAsDouble(9, index) == 0)
+                            sl.SetCellValue(2, index, 0);
+                        else
+                            sl.SetCellValue(2, index, mea);
+                        sl.SetCellValue(3, index, avg * amp);
+                        sl.SetCellValue(4, index, (avg + (sig * 2)) * amp);
+                        sl.SetCellValue(5, index, (avg - (sig * 2)) * amp);
+                        sl.SetCellValue(6, index, (avg + (sig * 3)) * amp);
+                        sl.SetCellValue(7, index, (avg - (sig * 3)) * amp);
+                    }
+                    /*
+                     * 公式版
+                     */
+                     /*
                     if (spctype == SPCtype.C)
                     {
                         sl.SetCellValue(2, 1, "c");
@@ -2004,6 +2296,7 @@ namespace MeasuresData
                         sl.SetCellValue(6, 3 + i, string.Format("=({0} + ({1} * 3)){2}", average, sigma, amplify));
                         sl.SetCellValue(7, 3 + i, string.Format("=({0} - ({1} * 3)){2}", average, sigma, amplify));
                     }
+                    */
 
                     sl.SetColumnWidth(2, 25);
                     SLStyle style;
@@ -2185,101 +2478,71 @@ namespace MeasuresData
                 LoadCustom(dlg.FileName);
             }
         }
-        public void LoadCustom(string fname)
-        {
-            if (!System.IO.File.Exists(fname))
-                return;
-            string[] datas = File.ReadAllLines(fname);
-            string data = datas.FirstOrDefault(x => x.Substring(0, 1) != "#");
-            List<string> customs = data.Split(';').ToList();
-            if (customs.Count <= 0)
-                return;
-            var incus = customs.ConvertAll(s => Int32.Parse(s)).ToList();
-            List<MElement> sdata = new List<MElement>();
-            List<MMeasure> smeasure = new List<MMeasure>();
-            string gtype;
-            switch (incus[0])
-            {
-                case 0:
-                    gtype = "TCPI";
-                    break;
-                case 1:
-                    gtype = "THIS";
-                    break;
-                case 2:
-                    gtype = "HACMI";
-                    break;
-                case 3:
-                    gtype = "";
-                    break;
-                default:
-                    gtype = "TCPI";
-                    break;
-            };
-            if (!string.IsNullOrEmpty(gtype))
-                sdata = gdata.Where(x => x.Group == gtype).ToList();
-            else
-                sdata = gdata;
-    }
-        private enum SPCtype
-        {
-            U = 1,
-            C = 2,
-            P = 3,
-            I = 4,
-            nP = 5,
-            Xbar_S = 6,
-            Xbar_R = 7
-        }
-        private enum IndicatorGroup
-        {
-            TCPI,
-            THIS,
-            HACMI,
-            ALL
-        }
-        private enum CustomType
-        {
-            E_Group,
-            E_Depart,
-            E_ELEID,
-            E_ELEName,
-            E_Record,
-            E_Frequency,
-            E_User,
-            E_MeasureID,
-            E_MeasureName,
-            E_Numerator,
-            E_NumeratorName,
-            E_Denominator,
-            E_DenominatorName,
-            E_Threshold,
-            E_Date_1,
-            E_Date_2,
-            E_Date_3,
-            E_Date_4,
-            E_Date_5,
-            E_Date_6,
-            E_Date_7,
-            E_Date_8,
-            E_Date_9,
-            E_Date_10,
-            E_Date_11,
-            E_Date_12,
-        }
 
         private void Combx1_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
-            if (gmeasure.Count <= 0)
+            if (GMeasures.Count <= 0)
                 return;
 
             if (Combx1.SelectedIndex == 0)
             {
-                Combx2.ItemsSource = gmeasure.Select(o => o.MeasureID + ":" + o.MeasureName).ToList();
+                Combx2.ItemsSource = GMeasures.Select(o => o.MeasureID + ":" + o.MeasureName).ToList();
             }
             else
             {
-                Combx2.ItemsSource = gmeasure.Where(o => o.Group == Combx1.SelectedValue.ToString()).Select(o => o.MeasureID + ":" + o.MeasureName).ToList();
+                Combx2.ItemsSource = GMeasures.Where(o => o.Group == Combx1.SelectedValue.ToString()).Select(o => o.MeasureID + ":" + o.MeasureName).ToList();
+            }
+        }
+
+        private void EXPORT_UPLOAD(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                ExportData(Combx5.SelectedValue.ToString(), Combx4_Month.SelectedValue.ToString());
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString());
+            }
+        }
+
+        private void BT_CONVERT_2_XLSX(object sender, RoutedEventArgs e)
+        {
+            string folderName = System.Environment.CurrentDirectory + @"\資料匯總";
+            try
+            {
+                foreach (var finame in System.IO.Directory.GetFileSystemEntries(folderName))
+                {
+                    if (System.IO.Path.GetExtension(finame) != ".xls")
+                        continue;
+                    Spire.Xls.Workbook wk = new Spire.Xls.Workbook();
+                    wk.LoadFromFile(finame);
+                    wk.SaveToFile(folderName + @"\xlsx\" + System.IO.Path.GetFileNameWithoutExtension(finame) + ".xlsx", Spire.Xls.ExcelVersion.Version2010);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString());
+            }
+        }
+
+        private void BT_CONVERT_2_XLS(object sender, RoutedEventArgs e)
+        {
+            string folderName = System.Environment.CurrentDirectory + @"\資料收集";
+            try
+            {
+                foreach (var finame in System.IO.Directory.GetFileSystemEntries(folderName))
+                {
+                    if (System.IO.Path.GetExtension(finame) != ".xlsx")
+                        continue;
+                    Spire.Xls.Workbook wk = new Spire.Xls.Workbook();
+                    wk.LoadFromFile(finame);
+                    wk.SaveToFile(folderName + @"\xls\" + System.IO.Path.GetFileNameWithoutExtension(finame) + ".xls", Spire.Xls.ExcelVersion.Version97to2003);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString());
             }
         }
     }

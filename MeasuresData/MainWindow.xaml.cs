@@ -14,6 +14,199 @@ using System.Collections;
 
 namespace MeasuresData
 {
+    #region CLASS
+
+    public class MMeasure
+    {
+        public string Group { get; set; }
+        public string MeasureID { get; set; }
+        public string MeasureName { get; set; }
+        public string Numerator { get; set; }
+        public string NumeratorName { get; set; }
+        public string Denominator { get; set; }
+        public string DenominatorName { get; set; }
+        public string Threshold { get; set; }
+        public string Frequency { get; set; }
+        public bool Positive { get; set; }
+        public string User { get; set; }
+
+        public Dictionary<string, List<double>> Records = new Dictionary<string, List<double>>();
+
+        public static MMeasure operator +(MMeasure a, MMeasure b)
+        {
+            MMeasure temp = new MMeasure();
+            if (a.Records.Count <= 0 || b.Records.Count <= 0)
+                return temp;
+            List<double> rds = new List<double>();
+            foreach (var x in a.Records)
+            {
+                var rd2 = b.Records.FirstOrDefault(o => o.Key == x.Key).Value;
+                if (rd2.Count == 2 && x.Value.Count == 2)
+                {
+                    temp.Records[x.Key] = new List<double>() { x.Value[0] + rd2[0], x.Value[1] + rd2[1] };
+                }
+            }
+            return temp;
+        }
+    }
+
+    public class MElement
+    {
+        public string Group { get; set; }
+        public string Depart { get; set; }
+        public string ElementID { get; set; }
+        public string ElementName { get; set; }
+        public string Frequency { get; set; }
+        public string User { get; set; }
+        public bool Complex { get; set; }
+
+        public List<string> SameID = new List<string>();
+
+        public DateTime ElementDate { get; set; }
+        public string ElementRecord { get; set; }
+        public Dictionary<string, double> AllRecords { get; set; }
+        public MElement()
+        {
+            AllRecords = new Dictionary<string, double>();
+            ElementDate = DateTime.MinValue;
+        }
+    }
+    public enum SPCtype
+    {
+        U = 1,
+        C = 2,
+        P = 3,
+        I = 4,
+        nP = 5,
+        Xbar_S = 6,
+        Xbar_R = 7
+    }
+    public class SPC
+    {
+        public string Name { get; set; }
+        public SPCtype Type { get; set; }
+        public Dictionary<string, List<double>> Records { get; set; }
+        public SPC()
+        {
+            Records = new Dictionary<string, List<double>>();
+            Type = SPCtype.P;
+        }
+        public SPC(Dictionary<string, List<double>> records, SPCtype type)
+        {
+            Type = type;
+            if (records.Count > 0)
+            {
+                foreach (var x in records)
+                {
+                    sum_a += x.Value[0];
+                    sum_b += x.Value[1];
+                }
+                if (sum_b == 0)
+                    return;
+                if (Type == SPCtype.C)
+                {
+                    u_p = sum_a / records.Count;
+                    n_n = records.Count;
+                }
+                else
+                {
+                    u_p = sum_a / sum_b;
+                    n_n = sum_b / records.Count;
+                }
+                avg = Type == SPCtype.nP ? u_p * n_n : u_p;
+                Title = new List<string>();
+                Measures = new List<double>();
+                Average = new List<double>();
+                UCL = new List<double>();
+                LCL = new List<double>();
+                UUCL = new List<double>();
+                LLCL = new List<double>();
+                foreach (var x in records)
+                {
+                    if (Type == SPCtype.P)
+                    {
+                        sigma = x.Value[1] == 0 ? 0 : Math.Sqrt(u_p * (1 - u_p) / x.Value[1]);
+                        measure = x.Value[1] == 0 ? 0 : x.Value[0] / x.Value[1];
+                    }
+                    else if (Type == SPCtype.U)
+                    {
+                        sigma = x.Value[1] == 0 ? 0 : Math.Sqrt(u_p / x.Value[1]);
+                        measure = x.Value[1] == 0 ? 0 : x.Value[0] / x.Value[1];
+                    }
+                    else if (Type == SPCtype.C)
+                    {
+                        sigma = Math.Sqrt(u_p);
+                        measure = x.Value[0];
+                    }
+                    else if (Type == SPCtype.nP)
+                    {
+                        sigma = Math.Sqrt(n_n * u_p * (1 - u_p));
+                        measure = x.Value[0];
+                    }
+                    else //暫時借用 U 圖
+                    {
+                        sigma = x.Value[1] == 0 ? 0 : Math.Sqrt(u_p / x.Value[1]);
+                        measure = x.Value[1] == 0 ? 0 : x.Value[0] / x.Value[1];
+                    }
+
+                    Measures.Add(measure);
+                    Average.Add(avg);
+                    UCL.Add(avg + (sigma * 3));
+                    LCL.Add(avg - (sigma * 3));
+                    UUCL.Add(avg + (sigma * 2));
+                    LLCL.Add(avg - (sigma * 2));
+                    Title.Add(x.Key);
+                }
+            }
+        }
+        public List<string> Title { get; set; }
+        public List<double> Measures { get; set; }
+        public List<double> Average { get; set; }
+        public List<double> UCL { get; set; }
+        public List<double> LCL { get; set; }
+        public List<double> UUCL { get; set; }
+        public List<double> LLCL { get; set; }
+        private double sum_a;
+        private double sum_b;
+        private double u_p;
+        private double n_n;
+        private double sigma;
+        private double avg;
+        private double measure;
+        public double Avg
+        {
+            get
+            {
+                return Type == SPCtype.nP ? u_p * n_n : u_p;
+            }
+        }
+    }
+    public class FileStatusHelper
+    {
+        [DllImport("kernel32.dll")]
+        public static extern IntPtr _lopen(string lpPathName, int iReadWrite);
+
+        [DllImport("kernel32.dll")]
+        public static extern bool CloseHandle(IntPtr hObject);
+
+        public const int OF_READWRITE = 2;
+        public const int OF_SHARE_DENY_NONE = 0x40;
+        public static readonly IntPtr HFILE_ERROR = new IntPtr(-1);
+
+        /// <summary>
+        /// 查看檔案是否被佔用
+        /// </summary>
+        /// <param name="filePath"></param>
+        /// <returns></returns>
+        public static bool IsFileOccupied(string filePath)
+        {
+            IntPtr vHandle = _lopen(filePath, OF_READWRITE | OF_SHARE_DENY_NONE);
+            CloseHandle(vHandle);
+            return vHandle == HFILE_ERROR ? true : false;
+        }
+    }
+    #endregion
+
     /// <summary>
     /// MainWindow.xaml 的互動邏輯
     /// </summary>
@@ -41,88 +234,6 @@ namespace MeasuresData
             Combx5.SelectedIndex = 0;
             */
             this.Cap.Title += " " + System.IO.File.GetLastWriteTime(this.GetType().Assembly.Location).ToString("yyy-MM-dd HH:mm");
-        }
-        #region CLASS
-
-        public class MMeasure
-        {
-            public string Group { get; set; }
-            public string MeasureID { get; set; }
-            public string MeasureName { get; set; }
-            public string Numerator { get; set; }
-            public string NumeratorName { get; set; }
-            public string Denominator { get; set; }
-            public string DenominatorName { get; set; }
-            public string Threshold { get; set; }
-            public string Frequency { get; set; }
-            public bool Positive { get; set; }
-            public string User { get; set; }
-
-            public Dictionary<string, List<double>> Records = new Dictionary<string, List<double>>();
-
-            public static MMeasure operator +(MMeasure a, MMeasure b)
-            {
-                MMeasure temp = new MMeasure();
-                if (a.Records.Count <= 0 || b.Records.Count <= 0)
-                    return temp;
-                List<double> rds = new List<double>();
-                foreach (var x in a.Records)
-                {
-                    var rd2 = b.Records.FirstOrDefault(o => o.Key == x.Key).Value;
-                    if (rd2.Count == 2 && x.Value.Count == 2)
-                    {
-                        temp.Records[x.Key] = new List<double>() { x.Value[0] + rd2[0], x.Value[1] + rd2[1] };
-                    }
-                }
-                return temp;
-            }
-        }
-
-        public class MElement
-        {
-            public string Group { get; set; }
-            public string Depart { get; set; }
-            public string ElementID { get; set; }
-            public string ElementName { get; set; }
-            public string Frequency { get; set; }
-            public string User { get; set; }
-            public bool Complex { get; set; }
-
-            public List<string> SameID = new List<string>();
-
-            public DateTime ElementDate { get; set; }
-            public string ElementRecord { get; set; }
-            public Dictionary<string, double> AllRecords { get; set; }
-            public MElement()
-            {
-                AllRecords = new Dictionary<string, double>();
-                ElementDate = DateTime.MinValue;
-            }
-        }
-
-        public class FileStatusHelper
-        {
-            [DllImport("kernel32.dll")]
-            public static extern IntPtr _lopen(string lpPathName, int iReadWrite);
-
-            [DllImport("kernel32.dll")]
-            public static extern bool CloseHandle(IntPtr hObject);
-
-            public const int OF_READWRITE = 2;
-            public const int OF_SHARE_DENY_NONE = 0x40;
-            public static readonly IntPtr HFILE_ERROR = new IntPtr(-1);
-
-            /// <summary>
-            /// 查看檔案是否被佔用
-            /// </summary>
-            /// <param name="filePath"></param>
-            /// <returns></returns>
-            public static bool IsFileOccupied(string filePath)
-            {
-                IntPtr vHandle = _lopen(filePath, OF_READWRITE | OF_SHARE_DENY_NONE);
-                CloseHandle(vHandle);
-                return vHandle == HFILE_ERROR ? true : false;
-            }
         }
         #region Stastic
         private Dictionary<string, double> StSummary(List<double> ListData)
@@ -269,10 +380,8 @@ namespace MeasuresData
             return _value;
         }
         #endregion
-
-        #endregion
-
         #region PARAMETER
+        /*
         private enum SPCtype
         {
             U = 1,
@@ -283,6 +392,7 @@ namespace MeasuresData
             Xbar_S = 6,
             Xbar_R = 7
         }
+        */
         private enum IndicatorGroup
         {
             TCPI,
@@ -732,14 +842,17 @@ namespace MeasuresData
                         }
                     }
                     //將分子、分母數據加回 gmeasure
-                    if (!x.Records.ContainsKey(DateTime.Now.AddMonths(-i - 1).ToString("yyyy/MM")))
+                    if (rnum > -1 && rdec > -1)
                     {
-                        x.Records.Add(DateTime.Now.AddMonths(-i - 1).ToString("yyyy/MM"),
-                        new List<double>() { rnum, rdec });
-                    }
-                    else
-                    {
-                        x.Records[DateTime.Now.AddMonths(-i - 1).ToString("yyyy/MM")] = new List<double>() { rnum, rdec };
+                        if (!x.Records.ContainsKey(DateTime.Now.AddMonths(-i - 1).ToString("yyyy/MM")))
+                        {
+                            x.Records.Add(DateTime.Now.AddMonths(-i - 1).ToString("yyyy/MM"),
+                            new List<double>() { rnum, rdec });
+                        }
+                        else
+                        {
+                            x.Records[DateTime.Now.AddMonths(-i - 1).ToString("yyyy/MM")] = new List<double>() { rnum, rdec };
+                        }
                     }
                 }
             }
@@ -2607,6 +2720,23 @@ namespace MeasuresData
             {
                 MessageBox.Show(ex.ToString());
             }
+        }
+
+        private void BT_OPEN_CHART(object sender, RoutedEventArgs e)
+        {
+            Chart ct = new Chart();
+            ct.GElements = GElements;
+            ct.GMeasures = GMeasures;
+            this.Hide();
+            try
+            {
+                ct.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString());
+            }
+            this.Show();
         }
     }
 }

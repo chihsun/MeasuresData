@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:lvc="clr-namespace:LiveCharts.Wpf;assembly=LiveCharts.Wpf"
         xmlns:local="clr-namespace:MeasuresData"
         mc:Ignorable="d"
         Title="童綜合醫院指標收整工具" Height="450" Width="711" Loaded="Window_Loaded" WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
@@ -32,5 +33,6 @@
         <Label x:Name="LB_Month_Copy" Content="匯出圖表" HorizontalAlignment="Left" Margin="438,23,0,0" VerticalAlignment="Top" RenderTransformOrigin="1.222,0.357" Width="105" HorizontalContentAlignment="Center" IsEnabled="False"/>
         <Button Content="To XLSX" HorizontalAlignment="Left" Margin="189,175,0,0" VerticalAlignment="Top" Width="105" Click="BT_CONVERT_2_XLSX" RenderTransformOrigin="0.417,4.727"/>
         <Button Content="To XLS" HorizontalAlignment="Left" Margin="59,175,0,0" VerticalAlignment="Top" Width="105" Click="BT_CONVERT_2_XLS" RenderTransformOrigin="0.417,4.727" IsEnabled="False"/>
+        <Button Content="檢視管制圖" HorizontalAlignment="Left" Margin="571,175,0,0" VerticalAlignment="Top" Width="105" Click="BT_OPEN_CHART" RenderTransformOrigin="0.417,4.727"/>
     </Grid>
 </Window>

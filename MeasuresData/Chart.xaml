@@ -26,14 +26,14 @@
                 <lvc:LineSeries x:Name="line2" Values="{Binding Values2}" StrokeThickness="2" Title="平均值"
                     Stroke="#1C8FC5" Fill="Transparent" LineSmoothness="1"
                     PointGeometry="{x:Null}"/>
-                <lvc:LineSeries x:Name="line3" Values="{Binding Values3}" StrokeThickness="2" StrokeDashArray="1" Title="管制圖上限(3α)"
-                    Stroke="#FF3333" Fill="Transparent" LineSmoothness="0" PointGeometry="{x:Null}" />
                 <lvc:LineSeries x:Name="line4" Values="{Binding Values4}" StrokeThickness="2" StrokeDashArray="1" Title="管制圖上限(2α)"
                     Stroke="#FFAD33" Fill="Transparent" LineSmoothness="0" PointGeometry="{x:Null}" />
-                <lvc:LineSeries x:Name="line5" Values="{Binding Values5}" StrokeThickness="2" StrokeDashArray="1" Title="管制圖下限(3α)"
+                <lvc:LineSeries x:Name="line3" Values="{Binding Values3}" StrokeThickness="2" StrokeDashArray="1" Title="管制圖上限(3α)"
                     Stroke="#FF3333" Fill="Transparent" LineSmoothness="0" PointGeometry="{x:Null}" />
                 <lvc:LineSeries x:Name="line6" Values="{Binding Values6}" StrokeThickness="2" StrokeDashArray="1" Title="管制圖下限(2α)"
                     Stroke="#FFAD33" Fill="Transparent" LineSmoothness="0" PointGeometry="{x:Null}" />
+                <lvc:LineSeries x:Name="line5" Values="{Binding Values5}" StrokeThickness="2" StrokeDashArray="1" Title="管制圖下限(3α)"
+                    Stroke="#FF3333" Fill="Transparent" LineSmoothness="0" PointGeometry="{x:Null}" />
             </lvc:CartesianChart.Series>
             <lvc:CartesianChart.AxisY>
                 <lvc:Axis Title="{x:Null}" LabelFormatter="{Binding YFormatter}"></lvc:Axis>

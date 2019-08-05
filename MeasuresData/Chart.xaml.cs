@@ -60,7 +60,7 @@ namespace MeasuresData
             });
             this.Combx0.ItemsSource = comb_list;
             this.Combx0.SelectedIndex = 0;
-            List<string> spctype = new List<string>() { "Default", "U", "C", "P", "I", "nP", "Xbar_S", "Xbar_R" };
+            List<string> spctype = new List<string>() { "Default", "U", "C", "P", "I_X", "I_MR", "nP", "Xbar_S", "Xbar_R" };
             Combx2.ItemsSource = spctype;
             Combx2.SelectedIndex = 0;
             /*

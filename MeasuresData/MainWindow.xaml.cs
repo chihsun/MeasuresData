@@ -76,10 +76,11 @@ namespace MeasuresData
         U = 1,
         C = 2,
         P = 3,
-        I = 4,
-        nP = 5,
-        Xbar_S = 6,
-        Xbar_R = 7
+        I_X = 4,
+        I_MR = 5,
+        nP = 6,
+        Xbar_S = 7,
+        Xbar_R = 8
     }
     public class SPC
     {
@@ -96,10 +97,36 @@ namespace MeasuresData
             Type = type;
             if (records.Count > 0)
             {
+                List<double> mr = new List<double>();
+                List<double> mea = new List<double>();
+                List<string> mr_s = new List<string>();
+                Title = new List<string>();
+                Measures = new List<double>();
+                Average = new List<double>();
+                UCL = new List<double>();
+                LCL = new List<double>();
+                UUCL = new List<double>();
+                LLCL = new List<double>();
                 foreach (var x in records)
                 {
                     sum_a += x.Value[0];
                     sum_b += x.Value[1];
+                    mea.Add(x.Value[1] == 0 ? 0 : x.Value[0] / x.Value[1]);
+                    mr_s.Add(x.Key);
+                }
+                for (int i = 0; i < mea.Count; i++)
+                {
+                    if (i == 0)
+                        continue;
+                    else
+                    {
+                        mr.Add(Math.Abs(mea[i] - mea[i - 1]));
+                        if (Type == SPCtype.I_MR)
+                        {
+                            Measures.Add(Math.Abs(mea[i] - mea[i - 1]));
+                            Title.Add(string.Format("{1} - {0}", mr_s[i], mr_s[i - 1]));
+                        }
+                    }
                 }
                 if (sum_b == 0)
                     return;
@@ -114,48 +141,60 @@ namespace MeasuresData
                     n_n = sum_b / records.Count;
                 }
                 avg = Type == SPCtype.nP ? u_p * n_n : u_p;
-                Title = new List<string>();
-                Measures = new List<double>();
-                Average = new List<double>();
-                UCL = new List<double>();
-                LCL = new List<double>();
-                UUCL = new List<double>();
-                LLCL = new List<double>();
-                foreach (var x in records)
+                if (Type == SPCtype.I_MR)
                 {
-                    if (Type == SPCtype.P)
+                    sigma = mr.Count() == 0 ? 0 : mr.Sum() / mr.Count();
+                    foreach (var x in mr)
                     {
-                        sigma = x.Value[1] == 0 ? 0 : Math.Sqrt(u_p * (1 - u_p) / x.Value[1]);
-                        measure = x.Value[1] == 0 ? 0 : x.Value[0] / x.Value[1];
+                        Average.Add(sigma);
+                        UCL.Add(sigma * 3.267);
+                        LCL.Add(sigma * 0);
+                        UUCL.Add(sigma * 1.51);
+                        LLCL.Add(sigma * 0);
                     }
-                    else if (Type == SPCtype.U)
+                }
+                else
+                {
+                    foreach (var x in records)
                     {
-                        sigma = x.Value[1] == 0 ? 0 : Math.Sqrt(u_p / x.Value[1]);
-                        measure = x.Value[1] == 0 ? 0 : x.Value[0] / x.Value[1];
+                        if (Type == SPCtype.P)
+                        {
+                            sigma = x.Value[1] == 0 ? 0 : Math.Sqrt(u_p * (1 - u_p) / x.Value[1]);
+                            measure = x.Value[1] == 0 ? 0 : x.Value[0] / x.Value[1];
+                        }
+                        else if (Type == SPCtype.U)
+                        {
+                            sigma = x.Value[1] == 0 ? 0 : Math.Sqrt(u_p / x.Value[1]);
+                            measure = x.Value[1] == 0 ? 0 : x.Value[0] / x.Value[1];
+                        }
+                        else if (Type == SPCtype.C)
+                        {
+                            sigma = Math.Sqrt(u_p);
+                            measure = x.Value[0];
+                        }
+                        else if (Type == SPCtype.nP)
+                        {
+                            sigma = Math.Sqrt(n_n * u_p * (1 - u_p));
+                            measure = x.Value[0];
+                        }
+                        else if (Type == SPCtype.I_X)
+                        {
+                            sigma = mr.Count() == 0 ? 0 : mr.Sum() / mr.Count();
+                            measure = x.Value[1] == 0 ? 0 : x.Value[0] / x.Value[1];
+                        }
+                        else //暫時借用 U 圖
+                        {
+                            sigma = x.Value[1] == 0 ? 0 : Math.Sqrt(u_p / x.Value[1]);
+                            measure = x.Value[1] == 0 ? 0 : x.Value[0] / x.Value[1];
+                        }
+                        Measures.Add(measure);
+                        Title.Add(x.Key);
+                        Average.Add(avg);
+                        UCL.Add(avg + (sigma * 3 / (Type == SPCtype.I_X ? 1.13 : 1)));
+                        LCL.Add(avg - (sigma * 3 / (Type == SPCtype.I_X ? 1.13 : 1)));
+                        UUCL.Add(avg + (sigma * 2 / (Type == SPCtype.I_X ? 1.13 : 1)));
+                        LLCL.Add(avg - (sigma * 2 / (Type == SPCtype.I_X ? 1.13 : 1)));
                     }
-                    else if (Type == SPCtype.C)
-                    {
-                        sigma = Math.Sqrt(u_p);
-                        measure = x.Value[0];
-                    }
-                    else if (Type == SPCtype.nP)
-                    {
-                        sigma = Math.Sqrt(n_n * u_p * (1 - u_p));
-                        measure = x.Value[0];
-                    }
-                    else //暫時借用 U 圖
-                    {
-                        sigma = x.Value[1] == 0 ? 0 : Math.Sqrt(u_p / x.Value[1]);
-                        measure = x.Value[1] == 0 ? 0 : x.Value[0] / x.Value[1];
-                    }
-
-                    Measures.Add(measure);
-                    Average.Add(avg);
-                    UCL.Add(avg + (sigma * 3));
-                    LCL.Add(avg - (sigma * 3));
-                    UUCL.Add(avg + (sigma * 2));
-                    LLCL.Add(avg - (sigma * 2));
-                    Title.Add(x.Key);
                 }
             }
         }
@@ -387,10 +426,11 @@ namespace MeasuresData
             U = 1,
             C = 2,
             P = 3,
-            I = 4,
-            nP = 5,
-            Xbar_S = 6,
-            Xbar_R = 7
+            I_X = 4,
+            I_MR = 5,
+            nP = 6,
+            Xbar_S = 7,
+            Xbar_R = 8
         }
         */
         private enum IndicatorGroup
@@ -578,7 +618,7 @@ namespace MeasuresData
                     Combx1.ItemsSource = group;
                     Combx2.ItemsSource = GMeasures.Select(o => o.MeasureID + ":" + o.MeasureName).ToList();
                     Combx1.SelectedIndex = 0;
-                    List<string> spctype = new List<string>() { "Default", "U", "C", "P", "I", "nP", "Xbar_S", "Xbar_R" };
+                    List<string> spctype = new List<string>() { "Default", "U", "C", "P", "I_X", "I_MR", "nP", "Xbar_S", "Xbar_R" };
                     Combx3.ItemsSource = spctype;
                     Combx3.SelectedIndex = 0;
                     group.Remove("全部");

@@ -177,22 +177,24 @@ namespace MeasuresData
             double amply = 1;
             if (spctype == SPCtype.P)
                 amply = 100;
+            int roundlevel = spcdatas.Average.Select(o => o * amply).Average() <= 0.1 ? 4 : 2;
             line1.Title = Combx1.SelectedValue.ToString();
-            line1.Values = new ChartValues<double>(spcdatas.Measures.Select(o => Math.Round(o * amply, 2)));
-            line2.Values = new ChartValues<double>(spcdatas.Average.Select(o => Math.Round(o * amply, 2)));
-            line3.Values = new ChartValues<double>(spcdatas.UCL.Select(o => Math.Round(o * amply, 2)));
-            line4.Values = new ChartValues<double>(spcdatas.UUCL.Select(o => Math.Round(o * amply, 2)));
-            line5.Values = new ChartValues<double>(spcdatas.LCL.Select(o => Math.Round(o * amply, 2)));
-            line6.Values = new ChartValues<double>(spcdatas.LLCL.Select(o => Math.Round(o * amply, 2)));
+            line1.Values = new ChartValues<double>(spcdatas.Measures.Select(o => Math.Round(o * amply, roundlevel)));
+            line2.Values = new ChartValues<double>(spcdatas.Average.Select(o => Math.Round(o * amply, roundlevel)));
+            line3.Values = new ChartValues<double>(spcdatas.UCL.Select(o => Math.Round(o * amply, roundlevel)));
+            line4.Values = new ChartValues<double>(spcdatas.UUCL.Select(o => Math.Round(o * amply, roundlevel)));
+            line5.Values = new ChartValues<double>(spcdatas.LCL.Select(o => Math.Round(o * amply, roundlevel)));
+            line6.Values = new ChartValues<double>(spcdatas.LLCL.Select(o => Math.Round(o * amply, roundlevel)));
 
             //axisx.Title = GMeasures.FirstOrDefault(o => o.MeasureID == Combx1.SelectedValue.ToString()).MeasureName;
             axisx.Labels = new List<string>(spcdatas.Title);
             //if (spctype == SPCtype.U || spctype == SPCtype.P)
                 //YFormatter = value => value.ToString("P", System.Globalization.CultureInfo.InvariantCulture);
-            YFormatter = value => value.ToString("F02");
+            YFormatter = value => value.ToString(roundlevel == 4 ? "F4" : "F2");
 
 
             DataContext = this;
+            cartesianchart1.AxisY[0].LabelFormatter = value => value.ToString(roundlevel == 4 ? "F4" : "F2");
             cartesianchart1.Update();
             this.Combx1.Focus();
         }

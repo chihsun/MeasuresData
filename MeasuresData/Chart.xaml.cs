@@ -157,6 +157,16 @@ namespace MeasuresData
             var lb = GMeasures.FirstOrDefault(o => o.MeasureID == this.Combx1.SelectedValue.ToString());
             Lb_1.Content = string.Format("{0} - {1}", lb.MeasureID, lb.MeasureName);
             //Combx2.SelectedIndex = 0;
+            var ctdata = GMeasures.FirstOrDefault(o => o.MeasureID == this.Combx1.SelectedValue.ToString()).Records; 
+            var ctdatatake = ctdata.Take(12).Reverse().ToDictionary(o => o.Key, o => o.Value);
+
+            List<string> exmonth = new List<string>();
+            foreach (var x in ctdatatake)
+                exmonth.Add(x.Key);
+            Combx4_Month_Ed.ItemsSource = Combx4_Month_ST.ItemsSource = exmonth;
+            Combx4_Month_ST.SelectedIndex = 0;
+            Combx4_Month_Ed.SelectedIndex = exmonth.Count - 1;
+
             Combx2_SelectionChanged(sender, e);
         }
 
@@ -173,7 +183,11 @@ namespace MeasuresData
             var ctdata = GMeasures.FirstOrDefault(o => o.MeasureID == this.Combx1.SelectedValue.ToString()).Records;
             if (ctdata == null || ctdata.Count <= 12)
                 return;
-            var spcdatas = new SPC(ctdata.Take(12).Reverse().ToDictionary(o => o.Key, o => o.Value), spctype);
+            var ctdatatake = ctdata.Take(12).Reverse().ToDictionary(o => o.Key, o => o.Value);
+            if (Combx4_Month_Ed.SelectedIndex - Combx4_Month_ST.SelectedIndex <= 3)
+                return;
+            var spcdatas = new SPC(ctdatatake.Skip(Combx4_Month_ST.SelectedIndex).Take(Combx4_Month_Ed.SelectedIndex - Combx4_Month_ST.SelectedIndex).ToDictionary(o => o.Key, o => o.Value), spctype);
+         
             double amply = 1;
             if (spctype == SPCtype.P)
                 amply = 100;

@@ -219,6 +219,19 @@ namespace MeasuresData
                 return Type == SPCtype.nP ? u_p * n_n : u_p;
             }
         }
+        public static SPC operator +(SPC s1, SPC s2)
+        {
+            var spcplus = s1;
+            spcplus.Title.AddRange(s2.Title);
+            spcplus.Measures.AddRange(s2.Measures);
+            spcplus.Average.AddRange(s2.Average);
+            spcplus.UCL.AddRange(s2.UCL);
+            spcplus.LCL.AddRange(s2.LCL);
+            spcplus.UUCL.AddRange(s2.UUCL);
+            spcplus.LLCL.AddRange(s2.LLCL);
+            return spcplus;
+
+        }
     }
     public class FileStatusHelper
     {

@@ -18,8 +18,9 @@
             <ComboBox x:Name="Combx1" HorizontalAlignment="Left" Margin="31,18.5,0,8.5" VerticalAlignment="Center" Width="150" HorizontalContentAlignment="Center" SelectionChanged="Combx1_SelectionChanged"/>
             <ComboBox x:Name="Combx2" HorizontalAlignment="Left" Margin="31,18.5,0,8.5" VerticalAlignment="Center" Width="80" HorizontalContentAlignment="Center" SelectionChanged="Combx2_SelectionChanged"/>
             <Button Content="匯出圖檔" HorizontalAlignment="Left" Margin="31,18.5,0,8.5" VerticalAlignment="Center" Width="75" Click="Button_Click"/>
+            <CheckBox x:Name="Ck_Sep" Content="分段" HorizontalAlignment="Left" Margin="31,18.5,0,8.5" VerticalAlignment="Center" Width="75" Checked="Ck_Sep_Checked" Unchecked="Ck_Sep_Checked"/>
         </DockPanel>
-        <lvc:CartesianChart x:Name="cartesianchart1" LegendLocation="Bottom" Background="#FFFFFF" Grid.Row="1">
+        <lvc:CartesianChart x:Name="cartesianchart1" Background="#FFFFFF" Grid.Row="1">
             <lvc:CartesianChart.Series>
                 <lvc:LineSeries x:Name="line1" Values="{Binding Values1}" StrokeThickness="4" StrokeDashArray="2" Title="{Binding Values1Title}"
                     Stroke="#6BBA45" Fill="Transparent" LineSmoothness="0" PointGeometrySize="10" PointForeground="#222E31" DataLabels="True" />
@@ -43,7 +44,7 @@
             </lvc:CartesianChart.AxisX>
         </lvc:CartesianChart>
         <Label x:Name="Lb_1" Content="Label" Height="50" VerticalAlignment="Center" HorizontalAlignment="Center" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Grid.Row="2" FontSize="16"/>
-        <ComboBox x:Name="Combx4_Month_ST" HorizontalAlignment="Left" Margin="585,16,0,0" VerticalAlignment="Top" Width="105" HorizontalContentAlignment="Center" RenderTransformOrigin="4.162,0.667" SelectionChanged="Combx2_SelectionChanged"/>
-        <ComboBox x:Name="Combx4_Month_Ed" HorizontalAlignment="Left" Margin="704,16,0,0" VerticalAlignment="Top" Width="105" HorizontalContentAlignment="Center" RenderTransformOrigin="4.162,0.667" SelectionChanged="Combx2_SelectionChanged"/>
+        <ComboBox x:Name="Combx4_Month_ST" HorizontalAlignment="Left" Margin="658,16,0,0" VerticalAlignment="Top" Width="105" HorizontalContentAlignment="Center" RenderTransformOrigin="4.162,0.667" SelectionChanged="Combx2_SelectionChanged"/>
+        <ComboBox x:Name="Combx4_Month_Ed" HorizontalAlignment="Left" Margin="777,16,0,0" VerticalAlignment="Top" Width="105" HorizontalContentAlignment="Center" RenderTransformOrigin="4.162,0.667" SelectionChanged="Combx2_SelectionChanged"/>
     </Grid>
 </Window>

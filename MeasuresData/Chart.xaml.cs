@@ -49,6 +49,7 @@ namespace MeasuresData
         public List<MElement> GElements = new List<MElement>();
         //原始資料庫之指標資料定義
         public List<MMeasure> GMeasures = new List<MMeasure>();
+        public SPC DataSet = new SPC();
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
@@ -63,83 +64,6 @@ namespace MeasuresData
             List<string> spctype = new List<string>() { "Default", "U", "C", "P", "I_X", "I_MR", "nP", "Xbar_S", "Xbar_R" };
             Combx2.ItemsSource = spctype;
             Combx2.SelectedIndex = 0;
-            /*
-            var ctdata = GMeasures.FirstOrDefault(o => o.MeasureID == "HA02-01").Records;
-            Titles = GMeasures.FirstOrDefault(o => o.MeasureID == "HA02-01").MeasureName;
-            if (ctdata == null || ctdata.Count <= 12)
-                return;
-            var spcdatas = new SPC(ctdata);
-            Values1 = new ChartValues<double>();
-            Values1.AddRange(spcdatas.Measures);
-            Values2 = new ChartValues<double>();
-            Values2.AddRange(spcdatas.Average);
-            Values3 = new ChartValues<double>();
-            Values3.AddRange(spcdatas.UCL);
-            Values4 = new ChartValues<double>();
-            Values4.AddRange(spcdatas.UUCL);
-            Values5 = new ChartValues<double>();
-            Values5.AddRange(spcdatas.LCL);
-            Values6 = new ChartValues<double>();
-            Values6.AddRange(spcdatas.LLCL);
-            Labels = new List<string>();
-            Labels.AddRange(spcdatas.Title);
-            Values1Title = "HA02-01";
-            */
-
-            /*
-            ChartValues<double> ctva = new ChartValues<double>();
-            int i = 0;
-            foreach (var x in ctdata)
-            {
-                if (i >= 12)
-                    break;
-                ctva.Insert(0, x.Value[1] == 0 ? 0 : Math.Round(1000 * x.Value[0] / x.Value[1], 2));
-                Labels.Insert(0, x.Key);
-                i++;
-            }
-            
-            SeriesCollection = new SeriesCollection
-            {
-                new LineSeries
-                {
-                    Title = "HA01-01",
-                    Values = ctva,
-                    Fill = new SolidColorBrush(Color.FromArgb(0, 0, 0, 0))
-                },
-                new LineSeries
-                {
-                    Title = "Series 2",
-                    Values = new ChartValues<double> { 6, 7, 3, 4 ,6 },
-                    PointGeometry = null
-                },
-                new LineSeries
-                {
-                    Title = "Series 3",
-                    Values = new ChartValues<double> { 4,2,7,2,7 },
-                    PointGeometry = DefaultGeometries.Square,
-                    PointGeometrySize = 15
-                }
-            };
-            */
-            /*
-            Labels = new[] { "Jan", "Feb", "Mar", "Apr", "May" };
-            //YFormatter = value => value.ToString("C");
-
-            //modifying the series collection will animate and update the chart
-            SeriesCollection.Add(new LineSeries
-            {
-                Title = "Series 4",
-                Values = new ChartValues<double> { 5, 3, 2, 4 },
-                LineSmoothness = 0, //0: straight lines, 1: really smooth lines
-                PointGeometry = Geometry.Parse("m 25 70.36218 20 -28 -20 22 -8 -6 z"),
-                PointGeometrySize = 50,
-                PointForeground = Brushes.Gray
-            });
-
-            //modifying any series values will also animate and update the chart
-            SeriesCollection[3].Values.Add(5d);
-            DataContext = this;
-            */
         }
 
         private void Combx0_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -158,22 +82,28 @@ namespace MeasuresData
             Lb_1.Content = string.Format("{0} - {1}", lb.MeasureID, lb.MeasureName);
             //Combx2.SelectedIndex = 0;
             var ctdata = GMeasures.FirstOrDefault(o => o.MeasureID == this.Combx1.SelectedValue.ToString()).Records; 
-            var ctdatatake = ctdata.Take(12).Reverse().ToDictionary(o => o.Key, o => o.Value);
-
-            List<string> exmonth = new List<string>();
-            foreach (var x in ctdatatake)
-                exmonth.Add(x.Key);
-            Combx4_Month_Ed.ItemsSource = Combx4_Month_ST.ItemsSource = exmonth;
-            Combx4_Month_ST.SelectedIndex = 0;
-            Combx4_Month_Ed.SelectedIndex = exmonth.Count - 1;
+            var ctdatatake = ctdata.Reverse().ToDictionary(o => o.Key, o => o.Value);
+            if (Ck_Sep.IsChecked == false)
+            {
+                List<string> exmonth = new List<string>();
+                foreach (var x in ctdatatake)
+                    exmonth.Add(x.Key);
+                Combx4_Month_Ed.ItemsSource = Combx4_Month_ST.ItemsSource = exmonth;
+                Combx4_Month_ST.SelectedIndex = 0;
+                Combx4_Month_Ed.SelectedIndex = exmonth.Count - 1;
+            }
 
             Combx2_SelectionChanged(sender, e);
         }
 
         private void Combx2_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (Combx2.SelectedIndex < 0)
-                return;
+            Paint();
+        }
+        private void Paint()
+        {
+            if (Combx2.SelectedIndex < 0 || Combx4_Month_Ed.SelectedIndex <= Combx4_Month_ST.SelectedIndex)
+                return; 
             SPCtype spctype;
             if (Combx2.SelectedIndex == 0)
                 spctype = SPCtype.P;
@@ -183,15 +113,32 @@ namespace MeasuresData
             var ctdata = GMeasures.FirstOrDefault(o => o.MeasureID == this.Combx1.SelectedValue.ToString()).Records;
             if (ctdata == null || ctdata.Count <= 12)
                 return;
-            var ctdatatake = ctdata.Take(12).Reverse().ToDictionary(o => o.Key, o => o.Value);
-            if (Combx4_Month_Ed.SelectedIndex - Combx4_Month_ST.SelectedIndex <= 3)
-                return;
-            var spcdatas = new SPC(ctdatatake.Skip(Combx4_Month_ST.SelectedIndex).Take(Combx4_Month_Ed.SelectedIndex - Combx4_Month_ST.SelectedIndex).ToDictionary(o => o.Key, o => o.Value), spctype);
-         
+            var ctdatatake = ctdata.Reverse().ToDictionary(o => o.Key, o => o.Value);
+            SPC spcdatas;
+            if (Ck_Sep.IsChecked == true)
+            {
+                if (Combx4_Month_ST.SelectedIndex < 3)
+                    return;
+                var data1 = new SPC(ctdatatake.Take(Combx4_Month_ST.SelectedIndex + 1).ToDictionary(o => o.Key, o => o.Value), spctype);
+                var data2 = new SPC(ctdatatake.Skip(Combx4_Month_ST.SelectedIndex + 1).Take(Combx4_Month_Ed.SelectedIndex - Combx4_Month_ST.SelectedIndex).ToDictionary(o => o.Key, o => o.Value), spctype);
+                spcdatas = data1 + data2; 
+                if ((Combx4_Month_Ed.Items.Count - Combx4_Month_Ed.SelectedIndex - 1) > 3)
+                {
+                    var data3 = new SPC(ctdatatake.Skip(Combx4_Month_Ed.SelectedIndex + 1).Take(Combx4_Month_Ed.Items.Count - Combx4_Month_Ed.SelectedIndex - 1).ToDictionary(o => o.Key, o => o.Value), spctype);
+                    spcdatas += data3;
+                }
+            }
+            else
+            {
+                if (Combx4_Month_Ed.SelectedIndex - Combx4_Month_ST.SelectedIndex <= 3)
+                    return;
+                spcdatas = new SPC(ctdatatake.Skip(Combx4_Month_ST.SelectedIndex).Take(Combx4_Month_Ed.SelectedIndex - Combx4_Month_ST.SelectedIndex + 1).ToDictionary(o => o.Key, o => o.Value), spctype);
+            }
             double amply = 1;
-            if (spctype == SPCtype.P)
+            if (spcdatas.Type == SPCtype.P)
                 amply = 100;
             int roundlevel = spcdatas.Average.Select(o => o * amply).Average() <= 0.1 ? 4 : 2;
+            /*
             line1.Title = Combx1.SelectedValue.ToString();
             line1.Values = new ChartValues<double>(spcdatas.Measures.Select(o => Math.Round(o * amply, roundlevel)));
             line2.Values = new ChartValues<double>(spcdatas.Average.Select(o => Math.Round(o * amply, roundlevel)));
@@ -199,16 +146,179 @@ namespace MeasuresData
             line4.Values = new ChartValues<double>(spcdatas.UUCL.Select(o => Math.Round(o * amply, roundlevel)));
             line5.Values = new ChartValues<double>(spcdatas.LCL.Select(o => Math.Round(o * amply, roundlevel)));
             line6.Values = new ChartValues<double>(spcdatas.LLCL.Select(o => Math.Round(o * amply, roundlevel)));
+            */
+            cartesianchart1.Series.Clear();
 
-            //axisx.Title = GMeasures.FirstOrDefault(o => o.MeasureID == Combx1.SelectedValue.ToString()).MeasureName;
+            cartesianchart1.Series.Add(new LineSeries
+            {
+                DataLabels = true,
+                LineSmoothness = 0,
+                PointGeometrySize = 10,
+                PointForeground = (SolidColorBrush)(new BrushConverter().ConvertFrom("#222E31")),
+                StrokeThickness = 4,
+                StrokeDashArray = new System.Windows.Media.DoubleCollection { 2 },
+                Stroke = (SolidColorBrush)(new BrushConverter().ConvertFrom("#6BBA45")),
+                Fill = Brushes.Transparent,
+                Title = Combx1.SelectedValue.ToString(),
+                Values = new ChartValues<double>(spcdatas.Measures.Select(o => Math.Round(o * amply, roundlevel)))
+            });
+            cartesianchart1.Series.Add(new LineSeries
+            {
+                LineSmoothness = 1,
+                PointGeometry = null,
+                StrokeDashArray = new System.Windows.Media.DoubleCollection { 2 },
+                Stroke = (SolidColorBrush)(new BrushConverter().ConvertFrom("#1C8FC5")),
+                Fill = Brushes.Transparent,
+                Title = "平均值",
+                Values = new ChartValues<double>(spcdatas.Average.Select(o => Math.Round(o * amply, roundlevel)))
+            });
+            cartesianchart1.Series.Add(new LineSeries
+            {
+                LineSmoothness = 0,
+                PointGeometry = null,
+                StrokeDashArray = new System.Windows.Media.DoubleCollection { 1 },
+                Stroke = (SolidColorBrush)(new BrushConverter().ConvertFrom("#FF3333")),
+                Fill = Brushes.Transparent,
+                Title = "管制圖上限(2α)",
+                Values = new ChartValues<double>(spcdatas.UCL.Select(o => Math.Round(o * amply, roundlevel)))
+            });
+            cartesianchart1.Series.Add(new LineSeries
+            {
+                LineSmoothness = 0,
+                PointGeometry = null,
+                StrokeDashArray = new System.Windows.Media.DoubleCollection { 1 },
+                Stroke = (SolidColorBrush)(new BrushConverter().ConvertFrom("#FFAD33")),
+                Fill = Brushes.Transparent,
+                Title = "管制圖上限(3α)",
+                Values = new ChartValues<double>(spcdatas.UUCL.Select(o => Math.Round(o * amply, roundlevel)))
+            });
+            cartesianchart1.Series.Add(new LineSeries
+            {
+                LineSmoothness = 0,
+                PointGeometry = null,
+                StrokeDashArray = new System.Windows.Media.DoubleCollection { 1 },
+                Stroke = (SolidColorBrush)(new BrushConverter().ConvertFrom("#FF3333")),
+                Fill = Brushes.Transparent,
+                Title = "管制圖下限(2α)",
+                Values = new ChartValues<double>(spcdatas.LCL.Select(o => Math.Round(o * amply, roundlevel)))
+            });
+            cartesianchart1.Series.Add(new LineSeries
+            {
+                LineSmoothness = 0,
+                PointGeometry = null,
+                StrokeDashArray = new System.Windows.Media.DoubleCollection { 1 },
+                Stroke = (SolidColorBrush)(new BrushConverter().ConvertFrom("#FFAD33")),
+                Fill = Brushes.Transparent,
+                Title = "管制圖下限(3α)",
+                Values = new ChartValues<double>(spcdatas.LLCL.Select(o => Math.Round(o * amply, roundlevel)))
+            });
+
+            axisx.Sections.Clear();
             axisx.Labels = new List<string>(spcdatas.Title);
-            //if (spctype == SPCtype.U || spctype == SPCtype.P)
-                //YFormatter = value => value.ToString("P", System.Globalization.CultureInfo.InvariantCulture);
-            YFormatter = value => value.ToString(roundlevel == 4 ? "F4" : "F2");
+            if (Ck_Sep.IsChecked == true)
+            {
+                axisx.Sections.Add(new AxisSection()
+                {
+                    Value = Combx4_Month_ST.SelectedIndex + 1,
+                    //Fill = Brushes.Transparent,
+                    Fill = (SolidColorBrush)(new BrushConverter().ConvertFrom("#f9ffe6")),
+                    Opacity = 7,
+                    Stroke = Brushes.Transparent,
+                    //StrokeThickness = 3,
+                    //Stroke = (SolidColorBrush)(new BrushConverter().ConvertFrom("#FFFF33")),
+                    //StrokeDashArray = new System.Windows.Media.DoubleCollection { 4 },
+                    SectionWidth = Combx4_Month_Ed.SelectedIndex - Combx4_Month_ST.SelectedIndex >= 3 ? Combx4_Month_Ed.SelectedIndex - Combx4_Month_ST.SelectedIndex - 1 : 0
+                });
+                /*
+                if (Combx4_Month_Ed.SelectedIndex - Combx4_Month_ST.SelectedIndex >= 3)
+                {
+                    axisx.Sections.Add(new AxisSection()
+                    {
+                        Value = Combx4_Month_Ed.SelectedIndex,
+                        Fill = Brushes.Transparent,
+                        Opacity = 6,
+                        StrokeThickness = 3,
+                        Stroke = (SolidColorBrush)(new BrushConverter().ConvertFrom("#FFFF33")),
+                        StrokeDashArray = new System.Windows.Media.DoubleCollection { 4 },
+                        //SectionWidth = Combx4_Month_Ed.SelectedIndex - Combx4_Month_ST.SelectedIndex
+                    });
+                }
+                */
+                /*
+                axisx.Labels = new List<string>();
+                foreach (var x in ctdatatake)
+                    axisx.Labels.Add(x.Key);
+                var data2 = new SPC(ctdatatake.Skip(Combx4_Month_ST.SelectedIndex + 1).Take(Combx4_Month_Ed.SelectedIndex - Combx4_Month_ST.SelectedIndex).ToDictionary(o => o.Key, o => o.Value), spctype);
+                for (int i = 0; i < Combx4_Month_ST.SelectedIndex + 1; i++)
+                {
+                    data2.Title.Insert(0, string.Empty);
+                    data2.Measures.Insert(0, double.NaN);
+                    data2.Average.Insert(0, double.NaN);
+                    data2.UCL.Insert(0, double.NaN);
+                    data2.UUCL.Insert(0, double.NaN);
+                    data2.LCL.Insert(0, double.NaN);
+                    data2.LLCL.Insert(0, double.NaN);
+                }
+                cartesianchart1.Series.Add(new LineSeries
+                {
+                    DataLabels = true,
+                    PointGeometrySize = 10,
+                    PointForeground = (SolidColorBrush)(new BrushConverter().ConvertFrom("#222E31")),
+                    StrokeThickness = 4,
+                    StrokeDashArray = new System.Windows.Media.DoubleCollection { 2 },
+                    Stroke = (SolidColorBrush)(new BrushConverter().ConvertFrom("#6BBA45")),
+                    Fill = Brushes.Transparent,
+                    Title = null,
+                    Values = new ChartValues<double>(data2.Measures.Select(o => Math.Round(o * amply, roundlevel)))
+                });
+                cartesianchart1.Series.Add(new LineSeries
+                {
+                    PointGeometry = null,
+                    StrokeDashArray = new System.Windows.Media.DoubleCollection { 2 },
+                    Stroke = (SolidColorBrush)(new BrushConverter().ConvertFrom("#1C8FC5")),
+                    Fill = Brushes.Transparent,
+                    Title = null,
+                    Values = new ChartValues<double>(data2.Average.Select(o => Math.Round(o * amply, roundlevel)))
+                });
+                cartesianchart1.Series.Add(new LineSeries
+                {
+                    PointGeometry = null,
+                    StrokeDashArray = new System.Windows.Media.DoubleCollection { 1 },
+                    Stroke = (SolidColorBrush)(new BrushConverter().ConvertFrom("#FF3333")),
+                    Fill = Brushes.Transparent,
+                    Values = new ChartValues<double>(data2.UCL.Select(o => Math.Round(o * amply, roundlevel)))
+                });
+                cartesianchart1.Series.Add(new LineSeries
+                {
+                    PointGeometry = null,
+                    StrokeDashArray = new System.Windows.Media.DoubleCollection { 1 },
+                    Stroke = (SolidColorBrush)(new BrushConverter().ConvertFrom("#FFAD33")),
+                    Fill = Brushes.Transparent,
+                    Values = new ChartValues<double>(data2.UUCL.Select(o => Math.Round(o * amply, roundlevel)))
+                });
+                cartesianchart1.Series.Add(new LineSeries
+                {
+                    PointGeometry = null,
+                    StrokeDashArray = new System.Windows.Media.DoubleCollection { 1 },
+                    Stroke = (SolidColorBrush)(new BrushConverter().ConvertFrom("#FF3333")),
+                    Fill = Brushes.Transparent,
+                    Values = new ChartValues<double>(data2.LCL.Select(o => Math.Round(o * amply, roundlevel)))
+                });
+                cartesianchart1.Series.Add(new LineSeries
+                {
+                    PointGeometry = null,
+                    StrokeDashArray = new System.Windows.Media.DoubleCollection { 1 },
+                    Stroke = (SolidColorBrush)(new BrushConverter().ConvertFrom("#FFAD33")),
+                    Fill = Brushes.Transparent,
+                    Values = new ChartValues<double>(data2.LLCL.Select(o => Math.Round(o * amply, roundlevel)))
+                });
+                */
+            }
 
+            //YFormatter = value => value.ToString(roundlevel == 4 ? "F4" : "F2");
 
-            DataContext = this;
             cartesianchart1.AxisY[0].LabelFormatter = value => value.ToString(roundlevel == 4 ? "F4" : "F2");
+            DataContext = this;
             cartesianchart1.Update();
             this.Combx1.Focus();
         }
@@ -231,6 +341,11 @@ namespace MeasuresData
             var frame = BitmapFrame.Create(bitmap);
             encoder.Frames.Add(frame);
             using (var stream = System.IO.File.Create(fileName)) encoder.Save(stream);
+        }
+
+        private void Ck_Sep_Checked(object sender, RoutedEventArgs e)
+        {
+            Paint();
         }
     }
 }

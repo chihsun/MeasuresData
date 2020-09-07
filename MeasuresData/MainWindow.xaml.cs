@@ -11,6 +11,7 @@ using Dapper;
 using System.Globalization;
 using SpreadsheetLight.Charts;
 using System.Collections;
+using System.Windows.Media;
 
 namespace MeasuresData
 {
@@ -25,12 +26,20 @@ namespace MeasuresData
         public string NumeratorName { get; set; }
         public string Denominator { get; set; }
         public string DenominatorName { get; set; }
-        public string Threshold { get; set; }
-        public string Frequency { get; set; }
-        public bool Positive { get; set; }
+        public List<double> Threshold { get; set; }
+        public List<double> PeerValue { get; set; }
+        public Fq Frequency { get; set; }
+        public SPCtype spc { get; set; }
+        public bool Negative { get; set; }
+        /// <summary>
+        /// O: 無單位
+        /// 1: 百分率
+        /// 2: 千分率
+        /// </summary>
+        public int Permil { get; set; }
         public string User { get; set; }
 
-        public Dictionary<string, List<double>> Records = new Dictionary<string, List<double>>();
+        public Dictionary<string, List<double>> Records { get; set; }
 
         public static MMeasure operator +(MMeasure a, MMeasure b)
         {
@@ -47,6 +56,20 @@ namespace MeasuresData
                 }
             }
             return temp;
+        }
+        public MMeasure()
+        {
+            Threshold = new List<double>();
+            Records = new Dictionary<string, List<double>>();
+            PeerValue = new List<double>();
+        }
+        public enum Fq
+        {
+            Day = 1,
+            Month = 2,
+            Season = 3,
+            HalfYear = 4,
+            Year = 5
         }
     }
 
@@ -103,6 +126,8 @@ namespace MeasuresData
                 Title = new List<string>();
                 Measures = new List<double>();
                 Average = new List<double>();
+                Threshhold = new List<double>();
+                Peervalue = new List<double>();
                 UCL = new List<double>();
                 LCL = new List<double>();
                 UUCL = new List<double>();
@@ -113,6 +138,13 @@ namespace MeasuresData
                     sum_b += x.Value[1];
                     mea.Add(x.Value[1] == 0 ? 0 : x.Value[0] / x.Value[1]);
                     mr_s.Add(x.Key);
+                    ///加入閾值及同儕值
+                    if (x.Value.Count > 2)
+                    {
+                        Threshhold.Add(x.Value[2]);
+                        if (x.Value.Count > 3)
+                            Peervalue.Add(x.Value[3]);
+                    }
                 }
                 for (int i = 0; i < mea.Count; i++)
                 {
@@ -205,6 +237,9 @@ namespace MeasuresData
         public List<double> LCL { get; set; }
         public List<double> UUCL { get; set; }
         public List<double> LLCL { get; set; }
+        public List<double> Threshhold { get; set; }
+        public List<double> Peervalue { get; set; }
+
         private double sum_a;
         private double sum_b;
         private double u_p;
@@ -229,6 +264,9 @@ namespace MeasuresData
             spcplus.LCL.AddRange(s2.LCL);
             spcplus.UUCL.AddRange(s2.UUCL);
             spcplus.LLCL.AddRange(s2.LLCL);
+            ///加上閾值及同儕值
+            spcplus.Threshhold.AddRange(s2.Threshhold);
+            spcplus.Peervalue.AddRange(s2.Peervalue);
             return spcplus;
 
         }
@@ -270,6 +308,8 @@ namespace MeasuresData
             //System.Threading.Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
             CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
             CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
+            System.Threading.Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
+            System.Threading.Thread.CurrentThread.CurrentUICulture = CultureInfo.InvariantCulture;
         }
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
@@ -673,7 +713,7 @@ namespace MeasuresData
                     {
                         if (string.IsNullOrEmpty(sl.GetCellValueAsString(1, j + 2)))
                             break;
-                        if (!DateTime.TryParse(sl.GetCellValueAsString(1, j + 2), out DateTime dts))
+                        if (!DateTime.TryParse(sl.GetCellValueAsDateTime(1, j + 2).ToString(), out DateTime dts))
                             break;
                         if (dts > DateTime.Now.AddMonths(-1 - 12 - 6) && dts < DateTime.Now)
                         {
@@ -2790,6 +2830,353 @@ namespace MeasuresData
                 MessageBox.Show(ex.ToString());
             }
             this.Show();
+        }
+
+        private void BT_READ_SPC(object sender, RoutedEventArgs e)
+        {
+            List<MMeasure> mm = new List<MMeasure>();
+            Microsoft.Win32.OpenFileDialog dlg = new Microsoft.Win32.OpenFileDialog();
+            dlg.InitialDirectory = Environment.CurrentDirectory;
+            dlg.Title = "選取資料檔";
+            dlg.Filter = "xlsx files (*.*)|*.xlsx";
+            if (dlg.ShowDialog() == true)
+            {
+                mm = GetMeauses(dlg.FileName);
+            }
+            if (mm.Count > 0)
+            {
+                Chart ct = new Chart
+                {
+                    GMeasures = mm
+                };
+                this.Hide();
+                try
+                {
+                    ct.ShowDialog();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.ToString());
+                }
+                this.Show();
+            }
+        }
+        public List<MMeasure> GetMeauses(string fname)
+        {
+            List<MMeasure> mm = new List<MMeasure>();
+            try
+            {
+                SLDocument sl = new SLDocument(fname, "Sheet1");
+                SLWorksheetStatistics slt = sl.GetWorksheetStatistics();
+                if (slt.EndRowIndex <= 1)
+                    return new List<MMeasure>();
+                for (int i = 0; i < slt.EndRowIndex; i += 5)
+                {
+                    if (string.IsNullOrEmpty(sl.GetCellValueAsString(i + 2, 1)))
+                        break;
+                    MMeasure data = new MMeasure
+                    {
+                        Group = sl.GetCellValueAsString(i + 2, 1).Trim(),
+                        MeasureID = sl.GetCellValueAsString(i + 2, 2).Trim(),
+                        MeasureName = sl.GetCellValueAsString(i + 2, 3).Trim(),
+                        //Numerator = sl.GetCellValueAsString(i + 2, 4).Trim(),
+                        //NumeratorName = sl.GetCellValueAsString(i + 2, 5).Trim(),
+                        //Denominator = sl.GetCellValueAsString(i + 2, 6).Trim(),
+                        //DenominatorName = sl.GetCellValueAsString(i + 2, 7).Trim(),
+                        Permil = string.IsNullOrEmpty(sl.GetCellValueAsString(i + 5, 2)) ? 0 : sl.GetCellValueAsString(i + 5, 2).Trim() == "‰" ? 2 : 1
+                    };
+                    Dictionary<string, List<double>> records = new Dictionary<string, List<double>>();
+                    for (int j = 4; j < slt.EndColumnIndex + 1; j++)
+                    {
+                        if (!DateTime.TryParse(sl.GetCellValueAsDateTime(1, j).ToString(), out DateTime dts))
+                            continue;
+                        if (double.TryParse(sl.GetCellValueAsString(i + 3, j), out double rnum))
+                        {
+                            if (!double.TryParse(sl.GetCellValueAsString(i + 4, j), out double rdec))
+                            {
+                                rdec = 1;
+                            }
+                            records[dts.ToString("yyyy/MM")] = new List<double>() { rnum, rdec };
+                        }
+                        ///加上閾值
+                        ///加上同儕值(必需先有閾值)
+                        if (string.IsNullOrEmpty(sl.GetCellValueAsString(i + 5, j)))
+                            continue;
+                        if (double.TryParse(sl.GetCellValueAsString(i + 5, j), out double rthresh))
+                        {
+                            records[dts.ToString("yyyy/MM")].Add(rthresh);
+                            if (string.IsNullOrEmpty(sl.GetCellValueAsString(i + 6, j)))
+                                continue;
+                            if (double.TryParse(sl.GetCellValueAsString(i + 6, j), out double rpeer))
+                            {
+                                records[dts.ToString("yyyy/MM")].Add(rpeer);
+                            }
+                        }
+                    }
+                    if (records.Count > 0)
+                    {
+                        data.Records = records;
+                        mm.Add(data);
+                    }
+                }
+                sl.CloseWithoutSaving();
+                return mm;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString());
+                return new List<MMeasure>();
+            }
+        }
+
+        private void EXPORT_E_Measure(object sender, RoutedEventArgs e)
+        {
+            if (GMeasures.Count <= 0)
+                return;
+            if (GRecords.Count <= 0)
+                return;
+            string fpath = Environment.CurrentDirectory + @"\要素備份";
+
+            if (!Directory.Exists(fpath))
+            {
+                Directory.CreateDirectory(fpath);
+            }
+
+            var sortbacks = GRecords.OrderBy(o => o.Key).ToDictionary(o => o.Key, p => p.Value.OrderByDescending(o => o.ElementRecord).ToList());
+            var Group_GM = GMeasures.GroupBy(o => o.Group).ToDictionary(o => o.Key, o => o.ToList());
+            try
+            {
+                foreach (var z in Group_GM)
+                {
+                    string fname = @"\指標數據總資料(" + z.Key + ")" + DateTime.Now.AddMonths(-1).ToString("yyyy-MM") + ".xlsx";
+                    using (SLDocument sl = new SLDocument())
+                    {
+                        SLStyle style;
+                        style = sl.CreateStyle();
+                        style.Alignment.Horizontal = HorizontalAlignmentValues.Center;
+                        style.Alignment.Vertical = VerticalAlignmentValues.Center;
+                        style.Alignment.WrapText = true;
+                        style.Font.FontSize = 12;
+                        sl.SetColumnWidth(1, 15);
+                        sl.SetColumnWidth(2, 10);
+                        sl.SetColumnWidth(3, 40);
+                        sl.SetColumnStyle(1, style);
+                        sl.SetColumnStyle(2, style);
+                        sl.SetColumnStyle(3, style);
+
+                        sl.SetCellValue(1, 1, "指標群組");
+                        sl.SetCellValue(1, 2, "指標代號");
+                        sl.SetCellValue(1, 3, "指標名稱");
+                        for (int i = 0; i < 12 + 6; i++)
+                            sl.SetCellValue(1, i + 4, DateTime.Now.AddMonths(-i - 1).ToString("yyyy/MM"));
+
+                        int index = 2;
+                        foreach (var x in z.Value)
+                        {
+                            sl.SetCellValue(index, 1, x.Group);
+                            sl.SetCellValue(index, 2, x.MeasureID);
+                            sl.SetCellValue(index, 3, x.MeasureName);
+                            sl.MergeWorksheetCells(index, 1, index + 2, 1);
+                            sl.MergeWorksheetCells(index, 2, index + 2, 2);
+                            sl.MergeWorksheetCells(index, 3, index + 2, 3);
+                            int Destatus = 0;
+                            int Nustatus = 0;
+
+                            List<List<MElement>> DenosPlus = new List<List<MElement>>();
+                            List<List<MElement>> NumePlus = new List<List<MElement>>();
+
+                            var Numes = sortbacks.FirstOrDefault(o => o.Key == x.Numerator).Value;
+                            var Denos = sortbacks.FirstOrDefault(o => o.Key == x.Denominator).Value;
+
+                            if (x.Denominator.Contains("+"))
+                            {
+                                Destatus = 1;
+                                var elements = x.Denominator.Split('+').ToList();
+                                if (elements.Count > 0)
+                                {
+                                    foreach (var ele in elements)
+                                    {
+                                        var em = sortbacks.FirstOrDefault(o => o.Key == ele.Trim()).Value;
+                                        if (em != null)
+                                            DenosPlus.Add(em);
+                                    }
+                                }
+                            }
+                            else if (x.Denominator.Contains(" - "))
+                            {
+                                Destatus = 2;
+                                var elements = x.Denominator.Split(new[] { " - " }, StringSplitOptions.None).ToList();
+                                if (elements.Count > 0)
+                                {
+                                    foreach (var ele in elements)
+                                    {
+                                        var em = sortbacks.FirstOrDefault(o => o.Key == ele.Replace("[", "").Replace("]", "").Trim()).Value;
+                                        if (em != null)
+                                            DenosPlus.Add(em);
+                                    }
+                                }
+                            }
+                            if (x.Numerator.Contains("+"))
+                            {
+                                Nustatus = 1;
+                                var elements = x.Numerator.Split('+').ToList();
+                                if (elements.Count > 0)
+                                {
+                                    foreach (var ele in elements)
+                                    {
+                                        var em = sortbacks.FirstOrDefault(o => o.Key == ele.Trim()).Value;
+                                        if (em != null)
+                                            NumePlus.Add(em);
+                                    }
+                                }
+                            }
+                            else if (x.Numerator.Contains(" - "))
+                            {
+                                Nustatus = 2;
+                                var elements = x.Numerator.Split(new[] { " - " }, StringSplitOptions.None).ToList();
+                                if (elements.Count > 0)
+                                {
+                                    foreach (var ele in elements)
+                                    {
+                                        var em = sortbacks.FirstOrDefault(o => o.Key == ele.Replace("[", "").Replace("]", "").Trim()).Value;
+                                        if (em != null)
+                                            NumePlus.Add(em);
+                                    }
+                                }
+                            }
+                            for (int i = 0; i < 12 + 6; i++)
+                            {
+                                if (x.Numerator == "1")
+                                    sl.SetCellValue(index + 1, i + 4, 1);
+                                else if (Numes != null)
+                                {
+                                    var nume = Numes.FirstOrDefault(o => o.ElementDate.Year == DateTime.Now.AddMonths(-i - 1).Year
+                                    && o.ElementDate.Month == DateTime.Now.AddMonths(-i - 1).Month);
+                                    if (nume != null)
+                                    {
+                                        if (Double.TryParse(nume.ElementRecord, out double numok))
+                                            sl.SetCellValue(index + 1, i + 4, numok);
+                                    }
+                                }
+                                else if (NumePlus.Count > 0)
+                                {
+                                    try
+                                    {
+                                        Double deno = 0;
+                                        foreach (var ele in NumePlus)
+                                        {
+                                            var de = ele.FirstOrDefault(o => o.ElementDate.Year == DateTime.Now.AddMonths(-i - 1).Year
+                                        && o.ElementDate.Month == DateTime.Now.AddMonths(-i - 1).Month);
+                                            if (de == null)
+                                            {
+                                                break;
+                                            }
+                                            if (!Double.TryParse(de.ElementRecord, out double num))
+                                                break;
+                                            if (Nustatus == 1)
+                                            {
+                                                deno += num;
+                                            }
+                                            else if (Nustatus == 2)
+                                            {
+                                                if (deno == 0)
+                                                    deno = num;
+                                                else
+                                                    deno -= num;
+                                            }
+                                        }
+                                        if (deno > 0)
+                                            sl.SetCellValue(index + 2, i + 4, deno);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        MessageBox.Show(ex.ToString());
+                                    }
+                                }
+                                if (x.Denominator == "1")
+                                    sl.SetCellValue(index + 2, i + 4, "NA");
+                                else if (Denos != null)
+                                {
+                                    var deno = Denos.FirstOrDefault(o => o.ElementDate.Year == DateTime.Now.AddMonths(-i - 1).Year
+                                    && o.ElementDate.Month == DateTime.Now.AddMonths(-i - 1).Month);
+                                    if (deno != null)
+                                    {
+                                        if (Double.TryParse(deno.ElementRecord, out double numok))
+                                            sl.SetCellValue(index + 2, i + 4, numok);
+                                    }
+                                }
+                                else if (DenosPlus.Count > 0)
+                                {
+                                    try
+                                    {
+                                        Double deno = 0;
+                                        foreach (var ele in DenosPlus)
+                                        {
+                                            var de = ele.FirstOrDefault(o => o.ElementDate.Year == DateTime.Now.AddMonths(-i - 1).Year
+                                        && o.ElementDate.Month == DateTime.Now.AddMonths(-i - 1).Month);
+                                            if (de == null)
+                                            {
+                                                break;
+                                            }
+                                            if (!Double.TryParse(de.ElementRecord, out double num))
+                                                break;
+                                            if (Destatus == 1)
+                                            {
+                                                deno += num;
+                                            }
+                                            else if (Destatus == 2)
+                                            {
+                                                if (deno == 0)
+                                                    deno = num;
+                                                else
+                                                    deno -= num;
+                                            }
+                                        }
+                                        if (deno > 0)
+                                            sl.SetCellValue(index + 2, i + 4, deno);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        MessageBox.Show(ex.ToString());
+                                    }
+                                }
+
+                                //將分子、分母數據加回 gmeasure
+                                if (!x.Records.ContainsKey(DateTime.Now.AddMonths(-i - 1).ToString("yyyy/MM")))
+                                {
+                                    x.Records.Add(DateTime.Now.AddMonths(-i - 1).ToString("yyyy/MM"),
+                                    new List<double>() { sl.GetCellValueAsDouble(index + 1, i + 4), sl.GetCellValueAsDouble(index + 2, i + 4) });
+                                }
+                                else
+                                {
+                                    x.Records[DateTime.Now.AddMonths(-i - 1).ToString("yyyy/MM")] = new List<double>() { sl.GetCellValueAsDouble(index + 1, i + 4), sl.GetCellValueAsDouble(index + 2, i + 4) };
+                                }
+
+
+                                if (!string.IsNullOrEmpty(sl.GetCellValueAsString(index + 2, i + 4)))
+                                {
+                                    if (Double.TryParse(sl.GetCellValueAsString(index + 1, i + 4), out double nu)
+                                        && Double.TryParse(sl.GetCellValueAsString(index + 2, i + 4) == "NA" ? "1" : sl.GetCellValueAsString(index + 2, i + 4), out double de))
+                                    {
+                                        if (nu == 0)
+                                            sl.SetCellValue(index, i + 4, 0);
+                                        else if (de != 0)
+                                            sl.SetCellValue(index, i + 4, nu / de);
+                                    }
+                                }
+                            }
+                            index += 3;
+                        }
+
+                        sl.SaveAs(fpath + fname);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString());
+            }
+            MessageBox.Show("指標數據匯出結束");
         }
     }
 }

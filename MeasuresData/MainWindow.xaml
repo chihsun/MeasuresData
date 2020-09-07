@@ -34,5 +34,7 @@
         <Button Content="To XLSX" HorizontalAlignment="Left" Margin="189,175,0,0" VerticalAlignment="Top" Width="105" Click="BT_CONVERT_2_XLSX" RenderTransformOrigin="0.417,4.727"/>
         <Button Content="To XLS" HorizontalAlignment="Left" Margin="59,175,0,0" VerticalAlignment="Top" Width="105" Click="BT_CONVERT_2_XLS" RenderTransformOrigin="0.417,4.727" IsEnabled="False"/>
         <Button Content="檢視管制圖" HorizontalAlignment="Left" Margin="571,175,0,0" VerticalAlignment="Top" Width="105" Click="BT_OPEN_CHART" RenderTransformOrigin="0.417,4.727"/>
+        <Button Content="單獨讀取指標" HorizontalAlignment="Left" Margin="571,139,0,0" VerticalAlignment="Top" Width="105" Click="BT_READ_SPC" RenderTransformOrigin="0.417,4.727"/>
+        <Button Content="匯出個別指標" HorizontalAlignment="Left" Margin="322,175,0,0" VerticalAlignment="Top" Width="105" Click="EXPORT_E_Measure" RenderTransformOrigin="0.417,4.727"/>
     </Grid>
 </Window>

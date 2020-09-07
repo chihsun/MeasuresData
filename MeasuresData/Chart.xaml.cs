@@ -41,6 +41,14 @@ namespace MeasuresData
         public ChartValues<double> Values4 { get; set; }
         public ChartValues<double> Values5 { get; set; }
         public ChartValues<double> Values6 { get; set; }
+        /// <summary>
+        /// 閾值
+        /// </summary>
+        public ChartValues<double> Values7 { get; set; }
+        /// <summary>
+        /// 同儕值
+        /// </summary>
+        public ChartValues<double> Values8 { get; set; }
         public string Values1Title { get; set; }
         //public string[] Labels { get; set; }
         public List<string> Labels { get; set; }
@@ -50,6 +58,7 @@ namespace MeasuresData
         //原始資料庫之指標資料定義
         public List<MMeasure> GMeasures = new List<MMeasure>();
         public SPC DataSet = new SPC();
+        public int Permil { get; set; }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
@@ -80,6 +89,7 @@ namespace MeasuresData
                 return;
             var lb = GMeasures.FirstOrDefault(o => o.MeasureID == this.Combx1.SelectedValue.ToString());
             Lb_1.Content = string.Format("{0} - {1}", lb.MeasureID, lb.MeasureName);
+            Permil = lb.Permil;
             //Combx2.SelectedIndex = 0;
             var ctdata = GMeasures.FirstOrDefault(o => o.MeasureID == this.Combx1.SelectedValue.ToString()).Records; 
             var ctdatatake = ctdata.Reverse().ToDictionary(o => o.Key, o => o.Value);
@@ -92,7 +102,11 @@ namespace MeasuresData
                 Combx4_Month_ST.SelectedIndex = 0;
                 Combx4_Month_Ed.SelectedIndex = exmonth.Count - 1;
             }
-
+            if (ctdata == null || ctdata.Count < 3)
+            {
+                cartesianchart1.Series.Clear();
+                return;
+            }
             Combx2_SelectionChanged(sender, e);
         }
 
@@ -111,7 +125,7 @@ namespace MeasuresData
                 spctype = (SPCtype)Combx2.SelectedIndex;
 
             var ctdata = GMeasures.FirstOrDefault(o => o.MeasureID == this.Combx1.SelectedValue.ToString()).Records;
-            if (ctdata == null || ctdata.Count <= 12)
+            if (ctdata == null || ctdata.Count < 3)
                 return;
             var ctdatatake = ctdata.Reverse().ToDictionary(o => o.Key, o => o.Value);
             SPC spcdatas;
@@ -130,13 +144,13 @@ namespace MeasuresData
             }
             else
             {
-                if (Combx4_Month_Ed.SelectedIndex - Combx4_Month_ST.SelectedIndex <= 3)
+                if (Combx4_Month_Ed.SelectedIndex - Combx4_Month_ST.SelectedIndex < 3)
                     return;
                 spcdatas = new SPC(ctdatatake.Skip(Combx4_Month_ST.SelectedIndex).Take(Combx4_Month_Ed.SelectedIndex - Combx4_Month_ST.SelectedIndex + 1).ToDictionary(o => o.Key, o => o.Value), spctype);
             }
             double amply = 1;
             if (spcdatas.Type == SPCtype.P)
-                amply = 100;
+                amply = Permil == 2 ? 1000 : 100;
             int roundlevel = spcdatas.Average.Select(o => o * amply).Average() <= 0.1 ? 4 : 2;
             /*
             line1.Title = Combx1.SelectedValue.ToString();
@@ -164,6 +178,26 @@ namespace MeasuresData
             });
             cartesianchart1.Series.Add(new LineSeries
             {
+                LineSmoothness = 0,
+                PointGeometry = null,
+                StrokeDashArray = new System.Windows.Media.DoubleCollection { 1 },
+                Stroke = (SolidColorBrush)(new BrushConverter().ConvertFrom("#FF3333")),
+                Fill = Brushes.Transparent,
+                Title = "管制圖上限(3α)",
+                Values = new ChartValues<double>(spcdatas.UCL.Select(o => Math.Round(o * amply, roundlevel)))
+            });
+            cartesianchart1.Series.Add(new LineSeries
+            {
+                LineSmoothness = 0,
+                PointGeometry = null,
+                StrokeDashArray = new System.Windows.Media.DoubleCollection { 1 },
+                Stroke = (SolidColorBrush)(new BrushConverter().ConvertFrom("#FFAD33")),
+                Fill = Brushes.Transparent,
+                Title = "管制圖上限(2α)",
+                Values = new ChartValues<double>(spcdatas.UUCL.Select(o => Math.Round(o * amply, roundlevel)))
+            });
+            cartesianchart1.Series.Add(new LineSeries
+            {
                 LineSmoothness = 1,
                 PointGeometry = null,
                 StrokeDashArray = new System.Windows.Media.DoubleCollection { 2 },
@@ -177,41 +211,36 @@ namespace MeasuresData
                 LineSmoothness = 0,
                 PointGeometry = null,
                 StrokeDashArray = new System.Windows.Media.DoubleCollection { 1 },
-                Stroke = (SolidColorBrush)(new BrushConverter().ConvertFrom("#FF3333")),
-                Fill = Brushes.Transparent,
-                Title = "管制圖上限(2α)",
-                Values = new ChartValues<double>(spcdatas.UCL.Select(o => Math.Round(o * amply, roundlevel)))
-            });
-            cartesianchart1.Series.Add(new LineSeries
-            {
-                LineSmoothness = 0,
-                PointGeometry = null,
-                StrokeDashArray = new System.Windows.Media.DoubleCollection { 1 },
                 Stroke = (SolidColorBrush)(new BrushConverter().ConvertFrom("#FFAD33")),
-                Fill = Brushes.Transparent,
-                Title = "管制圖上限(3α)",
-                Values = new ChartValues<double>(spcdatas.UUCL.Select(o => Math.Round(o * amply, roundlevel)))
-            });
-            cartesianchart1.Series.Add(new LineSeries
-            {
-                LineSmoothness = 0,
-                PointGeometry = null,
-                StrokeDashArray = new System.Windows.Media.DoubleCollection { 1 },
-                Stroke = (SolidColorBrush)(new BrushConverter().ConvertFrom("#FF3333")),
                 Fill = Brushes.Transparent,
                 Title = "管制圖下限(2α)",
-                Values = new ChartValues<double>(spcdatas.LCL.Select(o => Math.Round(o * amply, roundlevel)))
+                Values = new ChartValues<double>(spcdatas.LLCL.Select(o => Math.Round(o * amply, roundlevel)))
             });
             cartesianchart1.Series.Add(new LineSeries
             {
                 LineSmoothness = 0,
                 PointGeometry = null,
                 StrokeDashArray = new System.Windows.Media.DoubleCollection { 1 },
-                Stroke = (SolidColorBrush)(new BrushConverter().ConvertFrom("#FFAD33")),
+                Stroke = (SolidColorBrush)(new BrushConverter().ConvertFrom("#FF3333")),
                 Fill = Brushes.Transparent,
                 Title = "管制圖下限(3α)",
-                Values = new ChartValues<double>(spcdatas.LLCL.Select(o => Math.Round(o * amply, roundlevel)))
+                Values = new ChartValues<double>(spcdatas.LCL.Select(o => Math.Round(o * amply, roundlevel)))
             });
+            ///加入閾值及同儕值
+            if (Ck_Thresh.IsChecked == true && spcdatas.Threshhold.Count > 0)
+            {
+                cartesianchart1.Series.Add(new LineSeries
+                {
+                    LineSmoothness = 0,
+                    PointGeometry = null,
+                    //StrokeThickness = 3,
+                    //StrokeDashArray = new System.Windows.Media.DoubleCollection { 2 },
+                    Stroke = (SolidColorBrush)(new BrushConverter().ConvertFrom("#3366FF")),
+                    Fill = Brushes.Transparent,
+                    Title = "閾值",
+                    Values = new ChartValues<double>(spcdatas.Threshhold.Select(o => Math.Round(o, roundlevel)))
+                });
+            }
 
             axisx.Sections.Clear();
             axisx.Labels = new List<string>(spcdatas.Title);
@@ -331,9 +360,15 @@ namespace MeasuresData
             {
                 System.IO.Directory.CreateDirectory(fpath);
             }
-            var encoder = new PngBitmapEncoder();
-            EncodeVisual(cartesianchart1, fpath + @"\SPC-(" + Combx1.SelectedValue.ToString() + DateTime.Now.ToString("yyyy-MM") + ").png", encoder);
+            SaveToPng(cartesianchart1, fpath + @"\SPC-" + Combx1.SelectedValue.ToString() + " " + DateTime.Now.ToString("yyyy-MM-dd HHmmss") + ".png");
+
         }
+        private void SaveToPng(FrameworkElement visual, string fileName)
+        {
+            var encoder = new PngBitmapEncoder();
+            EncodeVisual(visual, fileName, encoder);
+        }
+
         private static void EncodeVisual(FrameworkElement visual, string fileName, BitmapEncoder encoder)
         {
             var bitmap = new RenderTargetBitmap((int)visual.ActualWidth, (int)visual.ActualHeight, 96, 96, PixelFormats.Pbgra32);

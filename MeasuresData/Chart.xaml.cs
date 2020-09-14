@@ -9,6 +9,7 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using LiveCharts;
@@ -88,7 +89,7 @@ namespace MeasuresData
             if (this.Combx1.SelectedIndex < 0)
                 return;
             var lb = GMeasures.FirstOrDefault(o => o.MeasureID == this.Combx1.SelectedValue.ToString());
-            Lb_1.Content = string.Format("{0} - {1}", lb.MeasureID, lb.MeasureName);
+            Lb_1.Content = string.Format("{0} - {1} {2}", lb.MeasureID, lb.MeasureName, lb.Permil == 2 ? "(‰)" : lb.Permil == 1 ? "(％)" : "");
             Permil = lb.Permil;
             //Combx2.SelectedIndex = 0;
             var ctdata = GMeasures.FirstOrDefault(o => o.MeasureID == this.Combx1.SelectedValue.ToString()).Records; 
@@ -149,7 +150,7 @@ namespace MeasuresData
                 spcdatas = new SPC(ctdatatake.Skip(Combx4_Month_ST.SelectedIndex).Take(Combx4_Month_Ed.SelectedIndex - Combx4_Month_ST.SelectedIndex + 1).ToDictionary(o => o.Key, o => o.Value), spctype);
             }
             double amply = 1;
-            if (spcdatas.Type == SPCtype.P)
+            if (spctype != SPCtype.C && spctype != SPCtype.nP && spctype != SPCtype.I_MR)
                 amply = Permil == 2 ? 1000 : 100;
             int roundlevel = spcdatas.Average.Select(o => o * amply).Average() <= 0.1 ? 4 : 2;
             /*
@@ -227,7 +228,8 @@ namespace MeasuresData
                 Values = new ChartValues<double>(spcdatas.LCL.Select(o => Math.Round(o * amply, roundlevel)))
             });
             ///加入閾值及同儕值
-            if (Ck_Thresh.IsChecked == true && spcdatas.Threshhold.Count > 0)
+            if (Ck_Thresh.IsChecked == true && spcdatas.Threshold.Count > 0
+                && spcdatas.Type != SPCtype.C && spcdatas.Type != SPCtype.nP && spcdatas.Type != SPCtype.I_MR)
             {
                 cartesianchart1.Series.Add(new LineSeries
                 {
@@ -238,8 +240,22 @@ namespace MeasuresData
                     Stroke = (SolidColorBrush)(new BrushConverter().ConvertFrom("#3366FF")),
                     Fill = Brushes.Transparent,
                     Title = "閾值",
-                    Values = new ChartValues<double>(spcdatas.Threshhold.Select(o => Math.Round(o, roundlevel)))
+                    Values = new ChartValues<double>(spcdatas.Threshold.Select(o => Math.Round(o, roundlevel)))
                 });
+                if (Ck_Peer.IsChecked == true && spcdatas.Peervalue.Count > 0)
+                {
+                    cartesianchart1.Series.Add(new LineSeries
+                    {
+                        LineSmoothness = 0,
+                        PointGeometry = null,
+                        //StrokeThickness = 3,
+                        //StrokeDashArray = new System.Windows.Media.DoubleCollection { 2 },
+                        Stroke = (SolidColorBrush)(new BrushConverter().ConvertFrom("#FF3333")),
+                        Fill = Brushes.Transparent,
+                        Title = "同儕值",
+                        Values = new ChartValues<double>(spcdatas.Peervalue.Select(o => Math.Round(o, roundlevel)))
+                    });
+                }
             }
 
             axisx.Sections.Clear();
@@ -380,6 +396,29 @@ namespace MeasuresData
 
         private void Ck_Sep_Checked(object sender, RoutedEventArgs e)
         {
+            Paint();
+        }
+        private void Ck_Thresh_Checked(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (Ck_Thresh.IsChecked == true)
+                {
+                    Ck_Thresh.Background = System.Windows.Media.Brushes.Blue;
+                    if (Ck_Peer?.IsEnabled == false)
+                        Ck_Peer.IsEnabled = true;
+                }
+                else
+                {
+                    Ck_Thresh.Background = System.Windows.Media.Brushes.White;
+                    Ck_Peer.IsEnabled = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.ToString());
+                throw;
+            }
             Paint();
         }
     }

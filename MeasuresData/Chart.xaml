@@ -6,7 +6,7 @@
          xmlns:lvc="clr-namespace:LiveCharts.Wpf;assembly=LiveCharts.Wpf"
         xmlns:local="clr-namespace:MeasuresData"
         mc:Ignorable="d"
-        Title="管制圖檢視" Height="450" Width="900" Loaded="Window_Loaded" WindowStartupLocation="CenterScreen">
+        Title="管制圖檢視" Height="500" Width="1024" Loaded="Window_Loaded" WindowStartupLocation="CenterScreen">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="50"/>
@@ -19,8 +19,11 @@
             <ComboBox x:Name="Combx1" HorizontalAlignment="Left" Margin="10,10,0,0" VerticalAlignment="Center" Width="110" HorizontalContentAlignment="Center" SelectionChanged="Combx1_SelectionChanged"/>
             <ComboBox x:Name="Combx2" HorizontalAlignment="Left" Margin="20,10,0,0" VerticalAlignment="Center" Width="80" HorizontalContentAlignment="Center" SelectionChanged="Combx2_SelectionChanged"/>
             <Button Content="匯出圖檔" HorizontalAlignment="Left" Margin="30,10,0,0" VerticalAlignment="Center" Width="80" Click="Button_Click"/>
-            <CheckBox x:Name="Ck_Thresh" Content="閾值" HorizontalAlignment="Left" Margin="31,21.5,0,11.5" VerticalAlignment="Center" Width="75" Checked="Ck_Sep_Checked" Unchecked="Ck_Sep_Checked" IsChecked="True"/>
-            <CheckBox x:Name="Ck_Sep" Content="分段" HorizontalAlignment="Left" Margin="31,18.5,0,8.5" VerticalAlignment="Center" Width="75" Checked="Ck_Sep_Checked" Unchecked="Ck_Sep_Checked"/>
+            <CheckBox x:Name="Ck_Thresh" Content="閾值" HorizontalAlignment="Left" Margin="15,21,0,11.5" VerticalAlignment="Center" Width="75" Checked="Ck_Thresh_Checked" Unchecked="Ck_Thresh_Checked" IsChecked="True" Foreground="#FF3366FF" Background="#663366FF"/>
+            <CheckBox x:Name="Ck_Peer" Content="同儕值" HorizontalAlignment="Left" Margin="31,21.5,0,11.5" VerticalAlignment="Center" Width="75" Checked="Ck_Thresh_Checked" Unchecked="Ck_Thresh_Checked" IsChecked="True"/>
+            <CheckBox x:Name="Ck_Sep" Content="分段" HorizontalAlignment="Left" Margin="15,21,0,11" VerticalAlignment="Center" Width="75" Checked="Ck_Sep_Checked" Unchecked="Ck_Sep_Checked"/>
+            <ComboBox x:Name="Combx4_Month_ST" HorizontalAlignment="Left" Margin="30,16,0,0" VerticalAlignment="Top" Width="105" HorizontalContentAlignment="Center" RenderTransformOrigin="4.162,0.667" SelectionChanged="Combx2_SelectionChanged"/>
+            <ComboBox x:Name="Combx4_Month_Ed" HorizontalAlignment="Left" Margin="10,16,0,0" VerticalAlignment="Top" Width="105" HorizontalContentAlignment="Center" RenderTransformOrigin="4.162,0.667" SelectionChanged="Combx2_SelectionChanged"/>
         </DockPanel>
         <lvc:CartesianChart x:Name="cartesianchart1" Background="#FFFFFF" Grid.Row="1">
             <lvc:CartesianChart.Series>
@@ -46,7 +49,5 @@
             </lvc:CartesianChart.AxisX>
         </lvc:CartesianChart>
         <Label x:Name="Lb_1" Content="Label" Height="50" VerticalAlignment="Center" HorizontalAlignment="Center" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Grid.Row="2" FontSize="16"/>
-        <ComboBox x:Name="Combx4_Month_ST" HorizontalAlignment="Left" Margin="658,16,0,0" VerticalAlignment="Top" Width="105" HorizontalContentAlignment="Center" RenderTransformOrigin="4.162,0.667" SelectionChanged="Combx2_SelectionChanged"/>
-        <ComboBox x:Name="Combx4_Month_Ed" HorizontalAlignment="Left" Margin="777,16,0,0" VerticalAlignment="Top" Width="105" HorizontalContentAlignment="Center" RenderTransformOrigin="4.162,0.667" SelectionChanged="Combx2_SelectionChanged"/>
     </Grid>
 </Window>

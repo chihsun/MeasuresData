@@ -12,6 +12,7 @@ using System.Globalization;
 using SpreadsheetLight.Charts;
 using System.Collections;
 using System.Windows.Media;
+using DocumentFormat.OpenXml.Drawing;
 
 namespace MeasuresData
 {
@@ -29,7 +30,7 @@ namespace MeasuresData
         public List<double> Threshold { get; set; }
         public List<double> PeerValue { get; set; }
         public Fq Frequency { get; set; }
-        public SPCtype spc { get; set; }
+        public SPCtype SpcDefault { get; set; }
         public bool Negative { get; set; }
         /// <summary>
         /// O: 無單位
@@ -40,7 +41,112 @@ namespace MeasuresData
         public string User { get; set; }
 
         public Dictionary<string, List<double>> Records { get; set; }
-
+        public List<double> MSs
+        {
+            get
+            {
+                List<double> me = new List<double>();
+                if (Records.Count > 0)
+                {
+                    foreach (var x in Records)
+                    {
+                        if (x.Value.Count >= 2)
+                            me.Add(x.Value[1] == 0 ? 0 : x.Value[0] / x.Value[1]);
+                    }
+                }
+                return me;
+            }
+        }
+        public double StandardDeviation
+        {
+            get
+            {
+                double standardDeviation = 0;
+                int count = MSs.Count();
+                if (count > 1)
+                {
+                    double avg = MSs.Average();
+                    double sum = MSs.Sum(d => (d - avg) * (d - avg));
+                    standardDeviation = Math.Sqrt(sum / count);
+                }
+                return standardDeviation;
+            }
+        }
+        public bool BeyondThreshhold()
+        {
+            if (MSs.Count >= 4 && Threshold.Count >= 4)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    if (MSs[i] <= Threshold[i])
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            return false;
+        }
+        public bool OverThreshhold()
+        {
+            if (MSs.Count >= 4 && Threshold.Count >= 4)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    if (MSs[i] >= Threshold[i])
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            return false;
+        }
+        public bool ShiftAverage()
+        {
+            int a = 0, b = 0;
+            if (MSs.Count >= 4)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    if (MSs[i] < MSs.Average() + 2 * StandardDeviation)
+                        a++;
+                    else if (MSs[i] > MSs.Average() - 2 * StandardDeviation)
+                        b++;
+                }
+            }
+            return a == 4 || b == 4;
+        }
+        public bool Uping()
+        {
+            if (MSs.Count >= 4)
+            {
+                double a = MSs[0];
+                for (int i = 1; i < 4; i++)
+                {
+                    if (MSs[i] > a)
+                        return false;
+                    a = MSs[i];
+                }
+                return true;
+            }
+            return false;
+        }
+        public bool Downing()
+        {
+            if (MSs.Count >= 4)
+            {
+                double a = MSs[0];
+                for (int i = 1; i < 4; i++)
+                {
+                    if (MSs[i] < a)
+                        return false;
+                    a = MSs[i];
+                }
+                return true;
+            }
+            return false;
+        }
         public static MMeasure operator +(MMeasure a, MMeasure b)
         {
             MMeasure temp = new MMeasure();
@@ -126,7 +232,7 @@ namespace MeasuresData
                 Title = new List<string>();
                 Measures = new List<double>();
                 Average = new List<double>();
-                Threshhold = new List<double>();
+                Threshold = new List<double>();
                 Peervalue = new List<double>();
                 UCL = new List<double>();
                 LCL = new List<double>();
@@ -141,7 +247,7 @@ namespace MeasuresData
                     ///加入閾值及同儕值
                     if (x.Value.Count > 2)
                     {
-                        Threshhold.Add(x.Value[2]);
+                        Threshold.Add(x.Value[2]);
                         if (x.Value.Count > 3)
                             Peervalue.Add(x.Value[3]);
                     }
@@ -237,16 +343,90 @@ namespace MeasuresData
         public List<double> LCL { get; set; }
         public List<double> UUCL { get; set; }
         public List<double> LLCL { get; set; }
-        public List<double> Threshhold { get; set; }
+        public List<double> Threshold { get; set; }
         public List<double> Peervalue { get; set; }
-
-        private double sum_a;
-        private double sum_b;
-        private double u_p;
-        private double n_n;
-        private double sigma;
-        private double avg;
-        private double measure;
+        public bool BeyondThreshhold()
+        {
+            if (Measures.Count >= 4 && Threshold.Count >= 4)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    if (Measures[i] <= Threshold[i])
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            return false;
+        }
+        public bool OverThreshhold()
+        {
+            if (Measures.Count >= 4 && Threshold.Count >= 4)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    if (Measures[i] >= Threshold[i])
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            return false;
+        }
+        public bool ShiftSPC()
+        {
+            int a = 0, b = 0;
+            if (Measures.Count >= 4 && UUCL.Count >= 4 && LLCL.Count >= 4)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    if (Measures[i] < UUCL[i])
+                        a++;
+                    else if (Measures[i] > LLCL[i])
+                        b++;
+                }
+            }
+            return a == 4 || b == 4;
+        }
+        public bool Uping()
+        {
+            if (Measures.Count >= 4)
+            {
+                double a = Measures[0];
+                for (int i = 1; i < 4; i++)
+                {
+                    if (Measures[i] > a)
+                        return false;
+                    a = Measures[i];
+                }
+                return true;
+            }
+            return false;
+        }
+        public bool Downing()
+        {
+            if (Measures.Count >= 4)
+            {
+                double a = Measures[0];
+                for (int i = 1; i < 4; i++)
+                {
+                    if (Measures[i] < a)
+                        return false;
+                    a = Measures[i];
+                }
+                return true;
+            }
+            return false;
+        }
+        private readonly double sum_a;
+        private readonly double sum_b;
+        private readonly double u_p;
+        private readonly double n_n;
+        private readonly double sigma;
+        private readonly double avg;
+        private readonly double measure;
         public double Avg
         {
             get
@@ -265,7 +445,7 @@ namespace MeasuresData
             spcplus.UUCL.AddRange(s2.UUCL);
             spcplus.LLCL.AddRange(s2.LLCL);
             ///加上閾值及同儕值
-            spcplus.Threshhold.AddRange(s2.Threshhold);
+            spcplus.Threshold.AddRange(s2.Threshold);
             spcplus.Peervalue.AddRange(s2.Peervalue);
             return spcplus;
 
@@ -2147,7 +2327,7 @@ namespace MeasuresData
                         sl.SetCellValue(index, 1, x.Group);
                         sl.SetCellValue(index, 2, x.MeasureID);
                         sl.SetCellValue(index, 3, x.MeasureName);
-                        sl.MergeWorksheetCells(index, 1, index + 2, 1);
+                        sl.MergeWorksheetCells(index, 1, index + 4, 1);
                         sl.MergeWorksheetCells(index, 2, index + 2, 2);
                         sl.MergeWorksheetCells(index, 3, index + 2, 3);
                         int Destatus = 0;
@@ -2336,7 +2516,7 @@ namespace MeasuresData
                                 }
                             }
                         }
-                        index += 3;
+                        index += 5;
                     }
                     
                     sl.SaveAs(fpath + fname);
@@ -2845,6 +3025,43 @@ namespace MeasuresData
             }
             if (mm.Count > 0)
             {
+                try
+                {
+                    string fpath = Environment.CurrentDirectory + @"\要素備份";
+                    if (!Directory.Exists(fpath))
+                    {
+                        Directory.CreateDirectory(fpath);
+                    }
+                    using (SLDocument sl = new SLDocument())
+                    {
+                        int i = 0;
+                        mm.ForEach(o =>
+                        {
+                            sl.SetCellValue(1, 1, "指標名稱");
+                            sl.SetCellValue(1, 2, "指標代碼");
+                            sl.SetCellValue(1, 3, "正負指標");
+                            sl.SetCellValue(1, 4, "超出閾值");
+                            sl.SetCellValue(1, 5, "偏離平均");
+                            sl.SetCellValue(1, 6, "上升趨勢");
+                            sl.SetCellValue(1, 7, "下降趨勢");
+                            sl.SetCellValue(2 + i, 1, o.MeasureName);
+                            sl.SetCellValue(2 + i, 2, o.MeasureID);
+                            sl.SetCellValue(2 + i, 3, o.Negative ? "負向指標" : "正向指標");
+                            sl.SetCellValue(2 + i, 4, (o.Negative ? o.OverThreshhold() : o.BeyondThreshhold()) ? "YES" : "NO");
+                            sl.SetCellValue(2 + i, 5, o.ShiftAverage() ? "YES" : "NO");
+                            sl.SetCellValue(2 + i, 6, o.Uping() ? "YES" : "NO");
+                            sl.SetCellValue(2 + i, 7, o.Downing() ? "YES" : "NO");
+                            sl.SetCellValue(2 + i, 8, Math.Round(o.StandardDeviation, 2));
+                            i++;
+                        });
+                        sl.SaveAs(fpath + @"\test.xlsx");
+                    }
+                }
+                catch (Exception ex)
+                {
+
+                    MessageBox.Show(ex.ToString());
+                }
                 Chart ct = new Chart
                 {
                     GMeasures = mm
@@ -2883,7 +3100,11 @@ namespace MeasuresData
                         //NumeratorName = sl.GetCellValueAsString(i + 2, 5).Trim(),
                         //Denominator = sl.GetCellValueAsString(i + 2, 6).Trim(),
                         //DenominatorName = sl.GetCellValueAsString(i + 2, 7).Trim(),
-                        Permil = string.IsNullOrEmpty(sl.GetCellValueAsString(i + 5, 2)) ? 0 : sl.GetCellValueAsString(i + 5, 2).Trim() == "‰" ? 2 : 1
+                        Permil = string.IsNullOrEmpty(sl.GetCellValueAsString(i + 5, 2)) ? 0 : sl.GetCellValueAsString(i + 5, 2).Trim() == "‰" ? 2 : 1,
+                        ///取得指標指向
+                        ///取得預設管制圖類型
+                        Negative = sl.GetCellValueAsString(i + 5, 3).Trim().Contains("負"),
+                        SpcDefault = sl.GetCellValueAsString(i + 6, 3).Trim().ToUpper() == "U" ? SPCtype.U : sl.GetCellValueAsString(i + 6, 3).Trim().ToUpper() == "C" ? SPCtype.C : SPCtype.P
                     };
                     Dictionary<string, List<double>> records = new Dictionary<string, List<double>>();
                     for (int j = 4; j < slt.EndColumnIndex + 1; j++)
